@@ -24,12 +24,19 @@ RUN apt-get -y install libpq-dev
 RUN apt-get -y install libcups2-dev
 RUN apt-get -y install libyaml-dev
 
-ADD . /cms
+RUN apt-get -y install unzip
 
-RUN cd /cms
-RUN pip install -r requirements.txt
-RUN ./prerequisites.py install --as-root -y
-RUN python setup.py install
+ADD https://github.com/veluca93/cms/archive/add_dockerfile.zip sources.zip
+RUN unzip sources.zip && \
+    rm sources.zip && \
+    mv cms-add_dockerfile /cms
+
+RUN cd /cms && \
+    pip install -r requirements.txt && \
+    ./prerequisites.py install --as-root -y && \
+    python setup.py install
+
+RUN apt-get -y remove unzip
 
 # See above about python wheels
 RUN apt-get -y remove python-dev
@@ -41,4 +48,5 @@ COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 EXPOSE 8888 8889 8890
 WORKDIR /cms
-CMD cgroups-mount && /usr/bin/supervisord
+CMD cgroups-mount
+CMD supervisord
