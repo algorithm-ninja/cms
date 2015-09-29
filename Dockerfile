@@ -26,10 +26,10 @@ RUN apt-get -y install libyaml-dev
 
 RUN apt-get -y install unzip
 
-ADD https://github.com/veluca93/cms/archive/add_dockerfile.zip sources.zip
+ADD https://github.com/algorithm-ninja/cms/archive/docker.zip sources.zip
 RUN unzip sources.zip && \
     rm sources.zip && \
-    mv cms-add_dockerfile /cms
+    mv cms-docker /cms
 
 RUN cd /cms && \
     pip install -r requirements.txt && \
