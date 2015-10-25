@@ -65,7 +65,7 @@ class TaskImporter(BaseImporter):
         self.update = update
         self.no_statement = no_statement
         self.add_to_contest = add_to_contest
-        self.loader = loader_class(os.path.realpath(path), self.file_cacher)
+        self.loader = loader_class(os.path.abspath(path), self.file_cacher)
 
     def do_import(self):
         """Get the task from the TaskLoader and store it."""
