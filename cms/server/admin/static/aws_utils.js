@@ -182,8 +182,10 @@ CMS.AWSUtils.prototype.display_notification = function(type, timestamp,
                    );
     outer.append(inner);
 
-    // Trigger a desktop notification as well
-    this.desktop_notification(type, timestamp, subject, text, contest_id);
+    // Trigger a desktop notification as well (but only if it's needed)
+    if (type !== "notification") {
+        this.desktop_notification(type, timestamp, subject, text, contest_id);
+    }
 };
 
 

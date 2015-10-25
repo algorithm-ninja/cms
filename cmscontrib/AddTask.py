@@ -70,8 +70,7 @@ class TaskImporter(BaseImporter):
         """Get the task from the TaskLoader and store it."""
 
         # We need to check whether the task has changed *before* calling
-        # get_task() as that method updates the last modified time used as
-        # reference.
+        # get_task() as that method might reset the "has_changed" bit..
         if self.update:
             task_has_changed = self.loader.task_has_changed()
 
@@ -93,7 +92,7 @@ class TaskImporter(BaseImporter):
                         ignore = set(("num",))
                         if self.no_statement:
                             ignore.update(("primary_statements",
-                                "statements"))
+                                           "statements"))
                         self._update_object(old_task, task, ignore)
                     task = old_task
                 else:

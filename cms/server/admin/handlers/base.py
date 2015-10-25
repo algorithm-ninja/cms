@@ -42,7 +42,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from cms.db import Contest, Participation, Question, Session, \
-    Submission, SubmissionFormatElement, Task, User
+    Submission, SubmissionFormatElement, SubmissionResult, Task, User
 from cms.grading.scoretypes import get_score_type_class
 from cms.grading.tasktypes import get_task_type_class
 from cms.server import CommonRequestHandler, file_handler_gen, get_url_root
@@ -425,8 +425,8 @@ class BaseHandler(CommonRequestHandler):
             .options(joinedload(Submission.participation))\
             .options(joinedload(Submission.files))\
             .options(joinedload(Submission.token))\
-            .options(joinedload(Submission.results))\
-            .options(joinedload(Submission.results.evaluations))\
+            .options(joinedload(Submission.results)
+                     .joinedload(SubmissionResult.evaluations))\
             .order_by(Submission.timestamp.desc())
 
         offset = page * page_size

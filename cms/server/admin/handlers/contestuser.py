@@ -141,7 +141,7 @@ class ParticipationHandler(BaseHandler):
             raise tornado.web.HTTPError(404)
 
         submission_query = self.sql_session.query(Submission)\
-            .filter(Submission.participation_id == participation.id)
+            .filter(Submission.participation == participation)
         page = int(self.get_query_argument("page", 0))
         self.render_params_for_submissions(submission_query, page)
 
@@ -165,7 +165,7 @@ class ParticipationHandler(BaseHandler):
         try:
             attrs = participation.get_attrs()
 
-            self.get_string(attrs, "password")
+            self.get_string(attrs, "password", empty=None)
             self.get_ip_address_or_subnet(attrs, "ip")
             self.get_datetime(attrs, "starting_time")
             self.get_timedelta_sec(attrs, "delay_time")

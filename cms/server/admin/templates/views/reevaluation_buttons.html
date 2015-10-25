@@ -5,7 +5,7 @@
                  '{{ key }}': {{ value }},
 {% end %}
                   'level': 'compilation'},
-                 function(response) { utils.redirect_if_ok('{{ url_root }}/{{ url }}', response); }
+                 function(response) { utils.redirect_if_ok('{{ url }}', response); }
                  );"
         title="Compilation" >C</button>
 <button onclick="cmsrpc_request('{{ url_root }}',
@@ -15,7 +15,7 @@
                  '{{ key }}': {{ value }},
 {% end %}
                   'level': 'evaluation'},
-                 function(response) { utils.redirect_if_ok('{{ url_root }}/{{ url }}', response); }
+                 function(response) { utils.redirect_if_ok('{{ url }}', response); }
                   );"
         title="Evaluation" >E</button>
 <button onclick="cmsrpc_request('{{ url_root }}',
@@ -25,6 +25,6 @@
                  '{{ key }}': {{ value }},
 {% end %}
                  },
-                 function(response) { utils.redirect_if_ok('{{ url_root }}/{{ url }}', response); }
+                 function(response) { utils.redirect_if_ok('{{ url }}', response); }
                  );"
         title="Score" >S</button>
