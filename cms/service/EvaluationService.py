@@ -327,6 +327,8 @@ class ESOperation(QueueItem):
         return (bool): True if the operation is still to be performed.
 
         """
+        return True  # temporary fix
+
         result = True
         dataset = Dataset.get_from_id(self.dataset_id, session)
         if self.type_ == ESOperation.COMPILATION:
