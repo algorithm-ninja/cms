@@ -93,7 +93,7 @@ def get_translations():
     for lang_code in os.listdir(locale_dir):
         if os.path.isdir(os.path.join(locale_dir, lang_code)):
             mo_file_path = os.path.join(locale_dir, lang_code,
-                    "LC_MESSAGES", "cms.mo")
+                                        "LC_MESSAGES", "cms.mo")
             if os.path.exists(mo_file_path):
                 with io.open(mo_file_path, "rb") as mo_file:
                     result[lang_code] = gettext.GNUTranslations(mo_file)

@@ -221,7 +221,8 @@ Options:
             if os.path.isdir(locale):
                 country_code = os.path.basename(locale)
                 print("  %s" % country_code)
-                path = os.path.join("cms", "locale", country_code, "LC_MESSAGES")
+                path = os.path.join(
+                    "cms", "locale", country_code, "LC_MESSAGES")
                 locale = os.path.join(locale, "LC_MESSAGES", "cms.po")
                 os.system(
                     "msgfmt %s -o %s" % (locale, os.path.join(path, "cms.mo")))

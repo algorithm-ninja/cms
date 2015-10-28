@@ -43,4 +43,4 @@ When the developers update the ``cms.pot`` file, you do not need to start from s
 
     msgmerge --width=79 <code>/LC_MESSAGES/cms.po cms.pot > <code>/LC_MESSAGES/cms.new.po
 
-You can now inspect the newly created :file:`cms.new.po` and, if you're satisfied, move it to :file:`cms.po` and finish the translation.
+You can now inspect the newly created :file:`cms.new.po` and, if you are satisfied, move it to :file:`cms.po` and finish the translation.
