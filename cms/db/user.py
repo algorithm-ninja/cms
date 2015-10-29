@@ -115,6 +115,10 @@ class User(Base):
 class Team(Base):
     """Class to store a team.
 
+    A team is a way of grouping the users participating in a contest.
+    This grouping has no effect on the contest itself; it is only used
+    for display purposes in RWS.
+
     """
 
     __tablename__ = 'teams'
@@ -124,16 +128,19 @@ class Team(Base):
         Integer,
         primary_key=True)
 
-    # Team code (e.g. "ITA", "USA", ...)
+    # Team code (e.g. the ISO 3166-1 code of a country)
     code = Column(
         Unicode,
         nullable=False,
         unique=True)
 
-    # Human readable team name (e.g. "Italy", "United States of America", ...)
+    # Human readable team name (e.g. the ISO 3166-1 short name of a country)
     name = Column(
         Unicode,
         nullable=False)
+
+    # TODO: decide if the flag images will eventually be stored here.
+    # TODO: (hopefully, the same will apply for faces in User).
 
 
 class Participation(Base):
@@ -215,13 +222,12 @@ class Participation(Base):
                         passive_deletes=True))
     __table_args__ = (UniqueConstraint('contest_id', 'user_id'),)
 
-    # Team (id and object) that he/she is representing with this participation.
+    # Team (id and object) that the user is representing with this participation.
     team_id = Column(
         Integer,
         ForeignKey(Team.id,
-                   onupdate="CASCADE", ondelete="CASCADE"),
-        nullable=True,
-        index=True)
+                   onupdate="CASCADE", ondelete="RESTRICT"),
+        nullable=True)
     team = relationship(
         Team,
         backref=backref("participations",

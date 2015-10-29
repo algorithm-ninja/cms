@@ -365,8 +365,8 @@ class ProxyService(TriggeredService):
 
         self.enqueue(ProxyOperation(ProxyExecutor.CONTEST_TYPE,
                                     {contest_id: contest_data}))
-        self.enqueue(ProxyOperation(ProxyExecutor.USER_TYPE, users))
         self.enqueue(ProxyOperation(ProxyExecutor.TEAM_TYPE, teams))
+        self.enqueue(ProxyOperation(ProxyExecutor.USER_TYPE, users))
         self.enqueue(ProxyOperation(ProxyExecutor.TASK_TYPE, tasks))
 
     def operations_for_score(self, submission):

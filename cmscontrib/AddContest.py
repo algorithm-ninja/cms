@@ -156,14 +156,8 @@ class ContestImporter(BaseImporter):
                 user = session.query(User) \
                               .filter(User.username == p["username"]).first()
 
-                if "team" not in p:
-                    p["team"] = None
-
-                if p["team"] is None:
-                    team = None
-                else:
-                    team = session.query(Team) \
-                                  .filter(Team.code == p["team"]).first()
+                team = session.query(Team) \
+                              .filter(Team.code == p.get("team")).first()
 
                 if user is None:
                     # FIXME: it would be nice to automatically try to
@@ -172,11 +166,11 @@ class ContestImporter(BaseImporter):
                                     p["username"])
                     return
 
-                if team is None and p["team"] is not None:
+                if team is None and p.get("team") is not None:
                     # FIXME: it would be nice to automatically try to
                     # import.
                     logger.critical("Team \"%s\" not found in database.",
-                                    p["team"])
+                                    p.get("team"))
                     return
 
                 # Prepare new participation
@@ -190,6 +184,8 @@ class ContestImporter(BaseImporter):
                     args["hidden"] = p["hidden"]
                 if "ip" in p:
                     args["ip"] = p["ip"]
+                if "password" in p:
+                    args["password"] = p["password"]
 
                 session.add(Participation(**args))
 

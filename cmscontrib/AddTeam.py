@@ -2,10 +2,6 @@
 # -*- coding: utf-8 -*-
 
 # Contest Management System - http://cms-dev.github.io/
-# Copyright © 2012 Bernard Blackham <bernard@largestprime.net>
-# Copyright © 2010-2011 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2011 Stefano Maggiolo <s.maggiolo@gmail.com>
-# Copyright © 2010-2011 Matteo Boscariol <boscarim@hotmail.com>
 # Copyright © 2015 William Di Luigi <williamdiluigi@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -54,10 +50,7 @@ logger = logging.getLogger(__name__)
 
 
 class TeamImporter(object):
-
-    """This script creates a team
-
-    """
+    """Script to create a team in the database."""
 
     def __init__(self, path, loader_class):
         self.file_cacher = FileCacher()
@@ -65,7 +58,6 @@ class TeamImporter(object):
 
     def do_import(self):
         """Get the team from the TeamLoader and store it."""
-
         # Get the team
         team = self.loader.get_team()
         if team is None:
@@ -86,20 +78,22 @@ class TeamImporter(object):
 
     def do_import_all(self, base_path, get_loader):
         """Get the participation list from the ContestLoader and then
-        try to import the needed teams."""
+        try to import the needed teams.
 
+        """
         added = set()
 
         _, _, participations = self.loader.get_contest()
         for p in participations:
-            team_path = os.path.join(base_path, p["team"])
+            if "team" in p:
+                team_path = os.path.join(base_path, p["team"])
 
-            if team_path not in added:
-                added.add(team_path)
-                TeamImporter(
-                    path=team_path,
-                    loader_class=get_loader(team_path)
-                ).do_import()
+                if team_path not in added:
+                    added.add(team_path)
+                    TeamImporter(
+                        path=team_path,
+                        loader_class=get_loader(team_path)
+                    ).do_import()
 
 
 def main():
