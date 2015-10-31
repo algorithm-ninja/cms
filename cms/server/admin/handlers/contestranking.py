@@ -118,7 +118,7 @@ class RankingHandler(BaseHandler):
                 if include_partial:
                     row.append("*" if partial else "")
 
-                writer.writerow(row)
+                writer.writerow([unicode(s).encode("utf-8") for s in row])
 
             self.render("ranking.csv", csv_output=output.getvalue())
         else:
