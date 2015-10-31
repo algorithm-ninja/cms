@@ -120,6 +120,6 @@ class RankingHandler(BaseHandler):
 
                 writer.writerow([unicode(s).encode("utf-8") for s in row])
 
-            self.render("ranking.csv", csv_output=output.getvalue())
+            self.finish(output.getvalue())
         else:
             self.render("ranking.html", **self.r_params)
