@@ -73,7 +73,7 @@ class RankingHandler(BaseHandler):
                             "attachment; filename=\"ranking.csv\"")
 
             if sys.version_info >= (3, 0):
-                output = io.StringIO()
+                output = io.StringIO()  # untested
             else:
                 output = io.BytesIO()
             writer = csv.writer(output)
@@ -118,7 +118,10 @@ class RankingHandler(BaseHandler):
                 if include_partial:
                     row.append("*" if partial else "")
 
-                writer.writerow([unicode(s).encode("utf-8") for s in row])
+                if sys.version_info >= (3, 0):
+                    writer.writerow(row)  # untested
+                else:
+                    writer.writerow([unicode(s).encode("utf-8") for s in row])
 
             self.finish(output.getvalue())
         else:
