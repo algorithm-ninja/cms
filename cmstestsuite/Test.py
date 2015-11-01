@@ -22,6 +22,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import json
 import os
 import re
 
@@ -39,10 +40,10 @@ class Check(object):
 
 class CheckOverallScore(Check):
     # This check searches for a string such :
-    #   Evaluated (100.0 / 100.0)
+    #   Scored (100.0 / 100.0)
     # in status and checks the score.
 
-    score_re = re.compile(r'^Evaluated \(([0-9.]+) / ([0-9/.]+)\)')
+    score_re = re.compile(r'^Scored \(([0-9.]+) / ([0-9/.]+)\)')
 
     def __init__(self, expected_score, expected_total):
         self.expected_score = expected_score
@@ -82,7 +83,7 @@ class CheckAbstractEvaluationFailure(Check):
         self.failure_string = failure_string
 
     def check(self, result_info):
-        if 'Evaluated' not in result_info['status']:
+        if 'Scored' not in result_info['status']:
             raise TestFailure("Expected a successful evaluation, got: %s" %
                               result_info['status'])
         if not result_info['evaluations']:
@@ -139,8 +140,12 @@ class Test(object):
         self.filename = filename
         self.languages = languages
         self.checks = checks
+        submission_format = json.loads(task.task_info["submission_format"])
+        self.submission_format_element = submission_format[0]
 
-    def run(self, contest_id, task_id, user_id, language):
+        self.submission_id = {}
+
+    def submit(self, contest_id, task_id, user_id, language):
         # Source files are stored under cmstestsuite/code/.
         path = os.path.join(os.path.dirname(__file__), 'code')
 
@@ -150,11 +155,19 @@ class Test(object):
         full_path = os.path.join(path, filename)
 
         # Submit our code.
-        submission_id = cws_submit(contest_id, task_id, user_id,
-                                   full_path, language)
+        self.submission_id[language] = cws_submit(
+            contest_id, task_id, user_id, self.submission_format_element,
+            full_path, language)
+
+    def wait(self, contest_id, language):
+        # This means we were not able to submit, hence the error
+        # should have been already noted.
+        if self.submission_id[language] is None:
+            return
 
         # Wait for evaluation to complete.
-        result_info = get_evaluation_result(contest_id, submission_id)
+        result_info = get_evaluation_result(
+            contest_id, self.submission_id[language])
 
         # Run checks.
         for check in self.checks:

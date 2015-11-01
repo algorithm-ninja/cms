@@ -3,7 +3,7 @@
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2012 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2014 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2010-2015 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
 # Copyright © 2014 Artem Iglikov <artem.iglikov@gmail.com>
 #
@@ -124,7 +124,7 @@ class Actor(threading.Thread):
 
         self.username = username
         self.password = password
-        self.metric = metrics
+        self.metrics = metrics
         self.tasks = tasks
         self.log = log
         self.base_url = base_url
@@ -187,19 +187,20 @@ class Actor(threading.Thread):
 
         """
         SLEEP_PERIOD = 0.1
-        time_to_wait = self.metric['time_coeff'] * \
-            random.expovariate(self.metric['time_lambda'])
+        time_to_wait = self.metrics['time_coeff'] * \
+            random.expovariate(self.metrics['time_lambda'])
         sleep_num = int(time_to_wait / SLEEP_PERIOD)
+        remaining_sleep = time_to_wait - (sleep_num * SLEEP_PERIOD)
         for i in xrange(sleep_num):
             time.sleep(SLEEP_PERIOD)
             if self.die:
                 raise ActorDying()
+        time.sleep(remaining_sleep)
+        if self.die:
+            raise ActorDying()
 
-
-class RandomActor(Actor):
-
-    def act(self):
-        # Start with logging in and checking to be logged in
+    def login(self):
+        """Log in and check to be logged in."""
         self.do_step(HomepageRequest(self.browser,
                                      self.username,
                                      loggedin=False,
@@ -213,7 +214,12 @@ class RandomActor(Actor):
                                      loggedin=True,
                                      base_url=self.base_url))
 
-        # Then keep forever stumbling across user pages
+
+class RandomActor(Actor):
+
+    def act(self):
+        self.login()
+
         while True:
             choice = random.random()
             task = random.choice(self.tasks)
@@ -234,6 +240,21 @@ class RandomActor(Actor):
                                          base_url=self.base_url))
 
 
+class SubmitActor(Actor):
+
+    def act(self):
+        self.login()
+
+        # Then keep forever stumbling across user pages
+        while True:
+            task = random.choice(self.tasks)
+            self.do_step(SubmitRandomRequest(
+                self.browser,
+                task,
+                base_url=self.base_url,
+                submissions_path=self.submissions_path))
+
+
 def harvest_contest_data(contest_id):
     """Retrieve the couples username, password and the task list for a
     given contest.
@@ -248,7 +269,8 @@ def harvest_contest_data(contest_id):
     tasks = []
     with SessionGen() as session:
         contest = Contest.get_from_id(contest_id, session)
-        for user in contest.users:
+        for participation in contest.participations:
+            user = participation.user
             users[user.username] = {'password': user.password}
         for task in contest.tasks:
             tasks.append((task.id, task.name, task.statements.keys()))
@@ -283,6 +305,13 @@ def main():
     parser.add_option("-r", "--read-from",
                       help="file to read contest info from",
                       action="store", default=None, dest="read_from")
+    parser.add_option("-t", "--time-coeff", type="float",
+                      help="average wait between actions",
+                      action="store", default=10.0, dest="time_coeff")
+    parser.add_option("-o", "--only-submit",
+                      help="whether the actor only submits solutions",
+                      action="store_true", default=False,
+                      dest="only_submissions")
     options = parser.parse_args()[0]
 
     # If prepare_path is specified we only need to save some useful
@@ -295,6 +324,9 @@ def main():
         with io.open(options.prepare_path, "wt", encoding="utf-8") as file_:
             file_.write("%s" % contest_data)
         return
+
+    assert options.time_coeff > 0.0
+    assert not (options.only_submissions and options.submissions_path == "")
 
     users = []
     tasks = []
@@ -326,7 +358,12 @@ def main():
             (get_service_address(ServiceCoord('ContestWebServer', 0))[0],
              config.contest_listen_port[0])
 
-    actors = [RandomActor(username, data['password'], DEFAULT_METRICS, tasks,
+    metrics = DEFAULT_METRICS
+    metrics["time_coeff"] = options.time_coeff
+    actor_class = RandomActor
+    if options.only_submissions:
+        actor_class = SubmitActor
+    actors = [actor_class(username, data['password'], metrics, tasks,
                           log=RequestLog(log_dir=os.path.join('./test_logs',
                                                               username)),
                           base_url=base_url,

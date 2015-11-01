@@ -14,6 +14,7 @@ OTHER CONTRIBUTORS
 Vytis Banaitis <vytis.banaitis@gmail.com>
 Giovanni Campagna (aka gcampax) <scampa.giovanni@gmail.com>
 Cheng, Ting-Yuan (aka magrady24) <magrady24+github@gmail.com>
+Luca Chiodini <luca@chiodini.org>
 William Di Luigi (aka wil93) <williamdiluigi@gmail.com>
 Johannes Kapfhammer (aka kapf) <jkapfham@ethz.ch>
 Vittorio Gambaletta (aka VittGam) <VittGam@VittGam.net>
@@ -24,6 +25,7 @@ Artem Iglikov (aka artikz) <artem.iglikov@gmail.com>
 Damien Leroy <damien.leroy@be-oi.be>
 Tubérculo Martínez <nlehmann@dcc.uchile.cl>
 Evgeny Martynov <evgeny@epochfail.com>
+Edoardo Morassutto <gianluigi988@gmail.com>
 Kento Nikaido (aka snukent) <snukent@gmail.com>
 William Pettersson <william.pettersson@gmail.com>
 Ludwig Schmidt <ludwigschmidt2@gmail.com>

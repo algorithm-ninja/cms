@@ -4,7 +4,7 @@ Running CMS
 Configuring the DB
 ==================
 
-The first thing to do is to create the user and the database. For PostgreSQL, this is obtained with the following commands (note that the user doesn't need to be a superuser, nor be able to create databases nor roles):
+The first thing to do is to create the user and the database. For PostgreSQL, this is obtained with the following commands (note that the user does not need to be a superuser, nor be able to create databases nor roles):
 
 .. sourcecode:: bash
 
@@ -14,7 +14,7 @@ The first thing to do is to create the user and the database. For PostgreSQL, th
     psql database -c 'ALTER SCHEMA public OWNER TO cmsuser'
     psql database -c 'GRANT SELECT ON pg_largeobject TO cmsuser'
 
-The last two lines are required to give the PostgreSQL user some privileges which it doesn't have by default, despite being the database owner.
+The last two lines are required to give the PostgreSQL user some privileges which it does not have by default, despite being the database owner.
 
 Then you may need to adjust the CMS configuration to contain the correct database parameters. See :ref:`running-cms_configuring-cms`.
 
@@ -54,18 +54,13 @@ These files are a pretty good starting point if you want to try CMS. There are s
 
 * if you want to run CMS without installing it, you need to change ``process_cmdline`` to reflect that.
 
-If you are organizing a real contest, you must change ``secret_key`` from the default, and also you will need to think about how to distribute your services and change accordingly ``core_services``. Finally, you should change the ranking section of :file:`cms.conf`, and :file:`cms.ranking.conf`, to use a non-trivial username and password.
+If you are organizing a real contest, you must also change ``secret_key`` to a random key, for example by running ``cmscommon.crypto.get_hex_random_key()``. You will also need to think about how to distribute your services and change ``core_services`` accordingly. Finally, you should change the ranking section of :file:`cms.conf`, and :file:`cms.ranking.conf`, using non-trivial username and password.
 
 .. warning::
 
    As the name implies, the value of ``secret_key`` must be kept confidential. If a contestant knows it (for example because you are using the default value), they may be easily able to log in as another contestant.
 
-After having modified :file:`cms.conf` and :file:`cms.ranking.conf` in :gh_tree:`config/`, you can reinstall CMS in order to make these changes effective, with
-
-.. sourcecode:: bash
-
-    sudo ./setup.py install
-
+The configuration files get copied automatically by the ``prerequisites.py`` script, so you can either run ``sudo ./prerequisites.py install`` again (answering "Y" when questioned about overwriting old configuration files) or you could simply edit the previously installed configuration files (which are usually found in ``/usr/local/etc/`` or ``/etc/``), if you do not plan on running that command ever again.
 
 Running CMS
 ===========
@@ -104,11 +99,11 @@ Recommended setup
 
 Of course, the number of servers one needs to run a contest depends on many factors (number of participants, length of the contest, economical issues, more technical matters...). We recommend that, for fairness, each Worker runs an a dedicated machine (i.e., without other CMS services beyond ResourceService).
 
-As for the distribution of services, usually there is one ResourceService for each machine, one instance for each of LogService, Checker, EvaluationService, AdminWebServer, and one or more instances of ContestWebServer and Worker. Again, if there are more than one Worker, we recommend to run them on different machines.
+As for the distribution of services, usually there is one ResourceService for each machine, one instance for each of LogService, ScoringService, Checker, EvaluationService, AdminWebServer, and one or more instances of ContestWebServer and Worker. Again, if there are more than one Worker, we recommend to run them on different machines.
 
-We suggest and support out-of-the-box using CMS over Ubuntu 14.04. Yet, CMS can be successfully run on different Linux distributions. Non-Linux operating systems are not supported.
+We suggest and support out-of-the-box using CMS over Ubuntu 14.10. Yet, CMS can be successfully run on different Linux distributions. Non-Linux operating systems are not supported.
 
-You can replicate the service handling the contestant-facing web server, :file:`cmsContestWebServer`; in this case, you need to configure a load balancer in front of them. We suggest to use nginx for that, and provide a sample configuration for it at :gh_blob:`config/nginx.conf.sample` (this file also configures nginx to act as a HTTPS endpoint and to force secure connections, by redirecting HTTP to HTTPS). This file probably needs to be adapted to your distribution if it's not Ubuntu: try to merge it with the file you find installed by default. For additional information see the official nginx `documentation <http://wiki.nginx.org/HttpUpstreamModule>`_ and `examples <http://wiki.nginx.org/LoadBalanceExample>`_. Note that without the ``ip_hash`` option some features might not always work as expected.
+You can replicate the service handling the contestant-facing web server, :file:`cmsContestWebServer`; in this case, you need to configure a load balancer in front of them. We suggest to use nginx for that, and provide a sample configuration for it at :gh_blob:`config/nginx.conf.sample` (this file also configures nginx to act as a HTTPS endpoint and to force secure connections, by redirecting HTTP to HTTPS). This file probably needs to be adapted to your distribution if it is not Ubuntu: try to merge it with the file you find installed by default. For additional information see the official nginx `documentation <http://wiki.nginx.org/HttpUpstreamModule>`_ and `examples <http://wiki.nginx.org/LoadBalanceExample>`_. Note that without the ``ip_hash`` option some features might not always work as expected.
 
 
 Logs

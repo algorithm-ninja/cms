@@ -3,7 +3,7 @@
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2012 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2013 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2010-2015 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
 # Copyright © 2012-2014 Luca Wehrstedt <luca.wehrstedt@gmail.com>
 # Copyright © 2013 Bernard Blackham <bernard@largestprime.net>
@@ -32,7 +32,8 @@ from __future__ import unicode_literals
 from datetime import datetime, timedelta
 
 from sqlalchemy.schema import Column, ForeignKey, CheckConstraint
-from sqlalchemy.types import Integer, Unicode, DateTime, Interval, Enum
+from sqlalchemy.types import Integer, Unicode, DateTime, Interval, Enum, \
+    Boolean
 from sqlalchemy.orm import relationship, backref
 
 from . import Base, RepeatedUnicode
@@ -57,17 +58,18 @@ class Contest(Base):
         Integer,
         primary_key=True)
 
-    # Short name of the contest, and longer description. Both human
-    # readable.
+    # Short name of the contest.
     name = Column(
         Unicode,
-        nullable=False)
+        nullable=False,
+        unique=True)
+    # Description of the contest (human readable).
     description = Column(
         Unicode,
         nullable=False)
 
     # The list of language codes of the localizations that contestants
-    # are allowed to use.
+    # are allowed to use (empty means all).
     allowed_localizations = Column(
         RepeatedUnicode(),
         nullable=False,
@@ -79,6 +81,20 @@ class Contest(Base):
         RepeatedUnicode(),
         nullable=False,
         default=DEFAULT_LANGUAGES)
+
+    # Whether contestants allowed to download their submissions.
+    submissions_download_allowed = Column(
+        Boolean,
+        nullable=False,
+        default=True)
+
+    # Whether to automatically log in users connecting from an IP
+    # address specified in the ip field of a participation to this
+    # contest.
+    ip_autologin = Column(
+        Boolean,
+        nullable=False,
+        default=False)
 
     # The parameters that control contest-tokens follow. Note that
     # their effect during the contest depends on the interaction with
@@ -138,11 +154,11 @@ class Contest(Base):
     start = Column(
         DateTime,
         nullable=False,
-        default=datetime(2000, 01, 01))
+        default=datetime(2000, 1, 1))
     stop = Column(
         DateTime,
         nullable=False,
-        default=datetime(2100, 01, 01))
+        default=datetime(2100, 1, 1))
 
     # Timezone for the contest. All timestamps in CWS will be shown
     # using the timezone associated to the logged-in user or (if it's
@@ -194,7 +210,7 @@ class Contest(Base):
     # SQLAlchemy.
     # tasks (list of Task objects)
     # announcements (list of Announcement objects)
-    # users (list of User objects)
+    # participations (list of Participation objects)
 
     # Moreover, we have the following methods.
     # get_submissions (defined in __init__.py)
@@ -236,20 +252,22 @@ class Contest(Base):
         raise KeyError("Task not found")
 
     # FIXME - Use SQL syntax
-    def get_user(self, username):
-        """Return the first user in the contest with the given name.
+    def get_participation(self, username):
+        """Return the first participation in the contest with the given
+        username.
 
         username (string): the name of the user we are interested in.
 
-        return (User): the corresponding user object.
+        return (Participation): the corresponding participation object.
 
-        raise (KeyError): if no users with the given name are found.
+        raise (KeyError): if no users with the given name participate.
 
         """
-        for user in self.users:
-            if user.username == username:
-                return user
-        raise KeyError("User not found")
+
+        for participation in self.participations:
+            if participation.user.username == username:
+                return participation
+        raise KeyError("Participation not found")
 
     def enumerate_files(self, skip_submissions=False, skip_user_tests=False,
                         skip_generated=False):
@@ -262,6 +280,7 @@ class Contest(Base):
         """
         # Here we cannot use yield, because we want to detect
         # duplicates
+
         files = set()
         for task in self.tasks:
 
@@ -502,11 +521,11 @@ class Contest(Base):
         if timestamp is None:
             timestamp = make_datetime()
 
-        user = self.get_user(username)
+        participation = self.get_participation(username)
         task = self.get_task(task_name)
 
         # Take the list of the tokens already played (sorted by time).
-        tokens = user.get_tokens()
+        tokens = participation.get_tokens()
         token_timestamps_contest = sorted([token.timestamp
                                            for token in tokens])
         token_timestamps_task = sorted([
@@ -519,7 +538,7 @@ class Contest(Base):
         # from the start of the contest.
         start = self.start
         if self.per_user_time is not None:
-            start = user.starting_time
+            start = participation.starting_time
 
         # Compute separately for contest-wise and task-wise.
         res_contest = Contest._tokens_available(

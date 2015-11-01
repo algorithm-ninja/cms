@@ -219,7 +219,8 @@ def get_compilation_commands(language, source_filenames, executable_filename,
         command = ["/usr/bin/gcc"]
         if for_evaluation:
             command += ["-DEVAL"]
-        command += ["-static", "-O2", "-o", executable_filename]
+        command += ["-static", "-O2", "-std=c11",
+                    "-o", executable_filename]
         command += source_filenames
         command += ["-lm"]
         commands.append(command)
@@ -355,27 +356,35 @@ def compilation_step(sandbox, commands):
     sandbox.timeout = 10
     sandbox.wallclock_timeout = 20
     sandbox.address_space = 512 * 1024
-    sandbox.stdout_file = "compiler_stdout.txt"
-    sandbox.stderr_file = "compiler_stderr.txt"
 
     # Actually run the compilation commands, logging stdout and stderr.
     logger.debug("Starting compilation step.")
     stdouts = []
     stderrs = []
-    for command in commands:
+    for step, command in enumerate(commands):
+        # Keep stdout and stderr of each compilation step
+        sandbox.stdout_file = "compiler_stdout_%d.txt" % step
+        sandbox.stderr_file = "compiler_stderr_%d.txt" % step
+
         box_success = sandbox.execute_without_std(command, wait=True)
         if not box_success:
             logger.error("Compilation aborted because of "
                          "sandbox error in `%s'.", sandbox.path)
             return False, None, None, None
-        stdout = unicode(sandbox.get_file_to_string("compiler_stdout.txt"),
+        stdout = unicode(sandbox.get_file_to_string(sandbox.stdout_file),
                          "utf-8", errors="replace").strip()
         if stdout != "":
             stdouts.append(stdout)
-        stderr = unicode(sandbox.get_file_to_string("compiler_stderr.txt"),
+        stderr = unicode(sandbox.get_file_to_string(sandbox.stderr_file),
                          "utf-8", errors="replace").strip()
         if stderr != "":
             stderrs.append(stderr)
+
+        # If some command in the sequence is failed,
+        # there is no reason to continue
+        if (sandbox.get_exit_status() != Sandbox.EXIT_OK or
+                sandbox.get_exit_code() != 0):
+            break
 
     # Detect the outcome of the compilation.
     exit_status = sandbox.get_exit_status()
@@ -874,7 +883,7 @@ def compute_changes_for_dataset(old_dataset, new_dataset):
     submissions = \
         task.sa_session.query(Submission)\
             .filter(Submission.task == task)\
-            .options(joinedload(Submission.user))\
+            .options(joinedload(Submission.participation))\
             .options(joinedload(Submission.token))\
             .options(joinedload(Submission.results)).all()
 
@@ -901,10 +910,11 @@ def compute_changes_for_dataset(old_dataset, new_dataset):
 
 ## Computing global scores (for ranking). ##
 
-def task_score(user, task):
-    """Return the score of a user on a task.
+def task_score(participation, task):
+    """Return the score of a contest's user on a task.
 
-    user (User): the user for which to compute the score.
+    participation (Participation): the user and contest for which to
+        compute the score.
     task (Task): the task for which to compute the score.
 
     return ((float, bool)): the score of user on task, and True if the
@@ -923,7 +933,7 @@ def task_score(user, task):
     # / evaluated / scored.
     partial = False
 
-    submissions = [s for s in user.submissions if s.task is task]
+    submissions = [s for s in participation.submissions if s.task is task]
     submissions.sort(key=lambda s: s.timestamp)
 
     if submissions == []:
@@ -940,7 +950,7 @@ def task_score(user, task):
 
         for s in submissions:
             sr = s.get_result(task.active_dataset)
-            if sr is not None and sr.evaluated():
+            if sr is not None and sr.scored():
                 max_score = max(max_score, sr.score)
             else:
                 partial = True
@@ -962,7 +972,7 @@ def task_score(user, task):
         last_s = submissions[-1]
         last_sr = last_s.get_result(task.active_dataset)
 
-        if last_sr is not None and last_sr.evaluated():
+        if last_sr is not None and last_sr.scored():
             last_score = last_sr.score
         else:
             partial = True
@@ -970,7 +980,7 @@ def task_score(user, task):
         for s in submissions:
             sr = s.get_result(task.active_dataset)
             if s.tokened():
-                if sr is not None and sr.evaluated():
+                if sr is not None and sr.scored():
                     max_tokened_score = max(max_tokened_score, sr.score)
                 else:
                     partial = True

@@ -1,0 +1,31 @@
+{% extends base.html %}
+
+{% block core %}
+{% from cms import plugin_list %}
+{% from cms.grading import format_status_text %}
+{% from cms.grading.scoretypes import get_score_type %}
+{% set score_types = {} %}
+
+<div class="core_title">
+  <h1>{{ task.title }} (<a href="{{ url_root }}/task/{{ task.id }}">{{ task.name }}</a>)</h1>
+</div>
+
+{% set dataset_selector_par_url = "%s/dataset" % (url_root) %}
+{% include fragments/dataset_selector.html %}
+
+<h2 id="title_submissions" class="toggling_on">Submissions</h2>
+<div id="submissions">
+  <p>
+    Reevaluate all {{ submission_count }} submissions for this dataset
+    {% module ReevaluationButtons(
+           url_root,
+           dataset_id=shown_dataset.id) %}
+  </p>
+
+  {% set page_url = "/dataset/%s" % shown_dataset.id %}
+  {% include fragments/submission_rows.html %}
+
+  <div class="hr"></div>
+</div>
+
+{% end %}
