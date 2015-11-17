@@ -31,9 +31,9 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import sys
-import io
 import csv
+import io
+import sys
 
 from sqlalchemy.orm import joinedload
 
@@ -75,6 +75,8 @@ class RankingHandler(BaseHandler):
             if sys.version_info >= (3, 0):
                 output = io.StringIO()  # untested
             else:
+                # In python2 we must use this because its csv module does not
+                # support unicode input
                 output = io.BytesIO()
             writer = csv.writer(output)
 

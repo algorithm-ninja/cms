@@ -44,7 +44,7 @@ import logging
 import os
 
 from cms import utf8_decoder
-from cms.db import SessionGen, Task, Contest
+from cms.db import Contest, SessionGen, Task
 from cms.db.filecacher import FileCacher
 
 from cmscontrib import BaseImporter
@@ -60,11 +60,11 @@ class TaskImporter(BaseImporter):
 
     """
 
-    def __init__(self, path, update, no_statement, add_to_contest, loader_class):
+    def __init__(self, path, update, no_statement, contest_id, loader_class):
         self.file_cacher = FileCacher()
         self.update = update
         self.no_statement = no_statement
-        self.add_to_contest = add_to_contest
+        self.contest_id = contest_id
         self.loader = loader_class(os.path.abspath(path), self.file_cacher)
 
     def do_import(self):
@@ -101,11 +101,22 @@ class TaskImporter(BaseImporter):
                                     task.name)
                     return
             else:
-                if self.add_to_contest is not None:
+                if self.contest_id is not None:
                     contest = session.query(Contest) \
-                                     .filter(Contest.id == self.add_to_contest) \
+                                     .filter(Contest.id == self.contest_id) \
                                      .first()
-                    task.contest = contest
+
+                    if contest is None:
+                        logger.critical(
+                            "The specified contest (id %s) does not exist. "
+                            "Aborting, no task imported.",
+                            self.contest_id)
+                        return
+                    else:
+                        logger.info(
+                            "Attaching task to contest with id %s.",
+                            self.contest_id)
+                        task.contest = contest
 
                 session.add(task)
 
@@ -141,9 +152,9 @@ def main():
         help="do not import / update task statement"
     )
     parser.add_argument(
-        "--add-to-contest",
+        "-c", "--contest-id",
         action="store", type=int,
-        help="what contest we want to add the task to"
+        help="id of the contest the task will be attached to"
     )
     parser.add_argument(
         "target",
@@ -163,7 +174,7 @@ def main():
         path=args.target,
         update=args.update,
         no_statement=args.no_statement,
-        add_to_contest=args.add_to_contest,
+        contest_id=args.contest_id,
         loader_class=loader_class
     ).do_import()
 
