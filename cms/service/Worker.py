@@ -157,6 +157,5 @@ class Worker(Service):
         self._number_execution += 1
         logger.info("Executed in %.3lf after free for %.3lf; "
                     "busyness is %.1lf%%; avg free time is %.3lf "
-                    "avg busy time is %.3lf " %
-                    (busy_time, free_time, ratio,
-                     avg_free_time, avg_busy_time))
+                    "avg busy time is %.3lf ",
+                    busy_time, free_time, ratio, avg_free_time, avg_busy_time)

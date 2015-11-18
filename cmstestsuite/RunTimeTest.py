@@ -21,16 +21,17 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import datetime
 import json
 import logging
 import os
 import sys
 
-import cmstestsuite.tasks.batch_100 as batch_100
+from argparse import ArgumentParser
+
+import cmstestsuite.tasks.batch_50 as batch_50
 
 from cms import LANG_C
-from cmstestsuite import cws_submit, get_evaluation_result
+from cmstestsuite import CONFIG, cws_submit, get_evaluation_result
 from cmstestsuite.Test import Test
 
 from testrunner import TestRunner
@@ -64,41 +65,40 @@ class TimeTest(object):
             cws_submit(contest_id, task_id, user_id,
                        self.submission_format_element,
                        full_path, language)
-            for i in range(self.repetitions)]
+            for _ in range(self.repetitions)]
 
-    def wait(self, contest_id, language):
+    def wait(self, contest_id, unused_language):
         # Wait for evaluation to complete.
         for submission_id in self.submission_ids:
             get_evaluation_result(contest_id, submission_id)
 
 
-def time_difference(start_time, end_time):
-    secs = int((end_time - start_time).total_seconds())
-    mins = secs / 60
-    secs = secs % 60
-    hrs = mins / 60
-    mins = mins % 60
-    return "Time elapsed: %02d:%02d:%02d" % (hrs, mins, secs)
-
-
 def main():
+    parser = ArgumentParser(description="Runs the CMS functional test suite.")
+    parser.add_argument(
+        "-s", "--submissions", action="store", type=int, default=50,
+        help="set the number of submissions to submit (default 50)")
+    parser.add_argument(
+        "-v", "--verbose", action="count",
+        help="print debug information (use multiple times for more)")
+    args = parser.parse_args()
+
+    CONFIG["VERBOSITY"] = args.verbose
+
     test_list = [Test('batch',
-                      task=batch_100, filename='correct-stdio.%l',
-                      languages=LANG_C, checks=[]) for _ in range(50)]
+                      task=batch_50, filename='correct-stdio.%l',
+                      languages=LANG_C, checks=[])
+                 for _ in range(args.submissions)]
 
     runner = TestRunner(test_list)
     runner.startup()
 
-    start_time = datetime.datetime.now()
     runner.submit_tests()
     runner.start_generic_services()
-    end_time = datetime.datetime.now()
-    logger.info(time_difference(start_time, end_time))
+    runner.log_elapsed_time()
 
-    start_time = datetime.datetime.now()
     failures = runner.wait_for_evaluation()
-    end_time = datetime.datetime.now()
-    logger.info(time_difference(start_time, end_time))
+    runner.log_elapsed_time()
 
     if failures == []:
         logger.info("All tests passed!")
