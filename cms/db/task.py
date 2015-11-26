@@ -97,6 +97,9 @@ class Task(Base):
         Unicode,
         nullable=False,
         unique=True)
+    ext_statement = Column(
+        Unicode,
+        nullable=True)
     title = Column(
         Unicode,
         nullable=False)

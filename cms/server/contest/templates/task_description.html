@@ -27,7 +27,7 @@
 <div class="row statement one_statement">
     <div class="span9">
     {% for lang_code in task.statements %}
-        <a href="{{ url_root }}/tasks/{{ encode_for_url(task.name) }}/statements/{{ encode_for_url(lang_code) }}" class="btn btn-large btn-success">{{ _("Download task statement") }}</a>
+        <a href="{% if task.ext_statement is None %}{{ url_root }}/tasks/{{ encode_for_url(task.name) }}/statements/{{ encode_for_url(lang_code) }}{% else %}{{ task.ext_statement }}{% end %}" class="btn btn-large btn-success">{{ _("Download task statement") }}</a>
     {% end %}
     </div>
 </div>
