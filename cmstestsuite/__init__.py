@@ -161,7 +161,7 @@ def spawn(cmdline):
     if CONFIG["VERBOSITY"] >= 1:
         print('$', ' '.join(cmdline))
 
-    if CONFIG["TEST_DIR"] is not None:
+    if CONFIG["TEST_DIR"] is not None and CONFIG.get("COVERAGE"):
         cmdline = ['python', '-m', 'coverage', 'run', '-p', '--source=cms'] + \
             cmdline
 
@@ -549,7 +549,7 @@ def cws_submit(contest_id, task_id, user_id, submission_format_element,
     return submission_id
 
 
-def get_evaluation_result(contest_id, submission_id, timeout=30):
+def get_evaluation_result(contest_id, submission_id, timeout=60):
     global aws_browser
     if aws_browser is None:
         aws_browser = mechanize.Browser()

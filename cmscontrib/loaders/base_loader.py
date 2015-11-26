@@ -229,7 +229,7 @@ class ContestLoader(BaseLoader):
         participations, at least enough to produce a list of all task
         names and a list of dict objects that will represent all the
         participations in the contest (each participation should have
-        at least these fields: username, team).
+        at least the "username" field).
 
         return (tuple): the Contest object and the two lists described
                         above.

@@ -79,22 +79,25 @@ def main():
         "-s", "--submissions", action="store", type=int, default=50,
         help="set the number of submissions to submit (default 50)")
     parser.add_argument(
+        "-w", "--workers", action="store", type=int, default=4,
+        help="set the number of workers to use (default 4)")
+    parser.add_argument(
         "-v", "--verbose", action="count",
         help="print debug information (use multiple times for more)")
     args = parser.parse_args()
 
     CONFIG["VERBOSITY"] = args.verbose
+    CONFIG["COVERAGE"] = False
 
     test_list = [Test('batch',
                       task=batch_50, filename='correct-stdio.%l',
                       languages=LANG_C, checks=[])
                  for _ in range(args.submissions)]
 
-    runner = TestRunner(test_list)
+    runner = TestRunner(test_list, workers=args.workers)
     runner.startup()
 
     runner.submit_tests()
-    runner.start_generic_services()
     runner.log_elapsed_time()
 
     failures = runner.wait_for_evaluation()

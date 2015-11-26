@@ -171,6 +171,7 @@ def main():
     args = parser.parse_args()
 
     CONFIG["VERBOSITY"] = args.verbose
+    CONFIG["COVERAGE"] = True
 
     # Pre-process our command-line arguments to figure out which tests to run.
     regexes = [re.compile(s) for s in args.regex]
@@ -207,7 +208,7 @@ def main():
     sh("python -m coverage erase")
 
     # Startup the test runner.
-    runner = TestRunner(test_list, contest_id=args.contest)
+    runner = TestRunner(test_list, contest_id=args.contest, workers=4)
     runner.startup()
 
     # Submit and wait for all tests to complete.
