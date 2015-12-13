@@ -156,15 +156,9 @@ class Actor(threading.Thread):
         self.wait_next()
         self.log.total += 1
         try:
-            request.prepare()
-        except Exception as exc:
-            print("Unhandled exception while preparing the request: %s" % exc,
-                  file=sys.stderr)
-            return
-        try:
             request.execute()
         except Exception as exc:
-            print("Unhandled exception while executing the request %s" % exc,
+            print("Unhandled exception while executing the request: %s" % exc,
                   file=sys.stderr)
             return
         self.log.__dict__[request.outcome] += 1
@@ -390,8 +384,6 @@ def main():
     while not finished:
         for actor in actors:
             actor.join()
-        else:
-            finished = True
 
     print("Test finished", file=sys.stderr)
 

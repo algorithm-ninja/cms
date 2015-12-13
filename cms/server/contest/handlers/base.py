@@ -134,6 +134,7 @@ class BaseHandler(CommonRequestHandler):
         """
         remote_ip = self.request.remote_ip
         if self.contest.ip_autologin:
+            self.clear_cookie("login")
             participations = self.sql_session.query(Participation)\
                 .filter(Participation.contest == self.contest)\
                 .filter(Participation.ip == remote_ip)\
@@ -145,6 +146,9 @@ class BaseHandler(CommonRequestHandler):
                 logger.error("Multiple users have IP %s." % (remote_ip))
             else:
                 logger.error("No user has IP %s" % (remote_ip))
+
+            # If IP autologin is set, we do not allow password logins.
+            return None
 
         if self.get_secure_cookie("login") is None:
             return None

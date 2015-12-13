@@ -30,7 +30,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from cms.db import Contest, Participation, User
+from cms.db import Contest, Participation, User, Team
 from cmscommon.datetime import make_datetime
 
 from .base import BaseHandler, SimpleHandler
@@ -86,6 +86,79 @@ class UserHandler(BaseHandler):
         if self.try_commit():
             # Update the user on RWS.
             self.application.service.proxy_service.reinitialize()
+        self.redirect(fallback_page)
+
+
+class TeamHandler(BaseHandler):
+    """Manage a single team.
+
+    If referred by GET, this handler will return a pre-filled HTML form.
+    If referred by POST, this handler will sync the team data with the form's.
+    """
+    def get(self, team_id):
+        team = self.safe_get_item(Team, team_id)
+
+        self.r_params = self.render_params()
+        self.r_params["team"] = team
+        self.render("team.html", **self.r_params)
+
+    def post(self, team_id):
+        fallback_page = "/team/%s" % team_id
+
+        team = self.safe_get_item(Team, team_id)
+
+        try:
+            attrs = team.get_attrs()
+
+            self.get_string(attrs, "code")
+            self.get_string(attrs, "name")
+
+            assert attrs.get("code") is not None, \
+                "No team code specified."
+
+            # Update the team.
+            team.set_attrs(attrs)
+
+        except Exception as error:
+            self.application.service.add_notification(
+                make_datetime(), "Invalid field(s)", repr(error))
+            self.redirect(fallback_page)
+            return
+
+        if self.try_commit():
+            # Update the team on RWS.
+            self.application.service.proxy_service.reinitialize()
+        self.redirect(fallback_page)
+
+
+class AddTeamHandler(SimpleHandler("add_team.html")):
+    def post(self):
+        fallback_page = "/teams/add"
+
+        try:
+            attrs = dict()
+
+            self.get_string(attrs, "code")
+            self.get_string(attrs, "name")
+
+            assert attrs.get("code") is not None, \
+                "No team code specified."
+
+            # Create the team.
+            team = Team(**attrs)
+            self.sql_session.add(team)
+
+        except Exception as error:
+            self.application.service.add_notification(
+                make_datetime(), "Invalid field(s)", repr(error))
+            self.redirect(fallback_page)
+            return
+
+        if self.try_commit():
+            # Create the team on RWS.
+            self.application.service.proxy_service.reinitialize()
+
+        # In case other teams need to be added.
         self.redirect(fallback_page)
 
 

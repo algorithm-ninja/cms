@@ -7,6 +7,7 @@
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
 # Copyright © 2013 Luca Wehrstedt <luca.wehrstedt@gmail.com>
 # Copyright © 2014-2015 William Di Luigi <williamdiluigi@gmail.com>
+# Copyright © 2015 Luca Chiodini <luca@chiodini.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -78,6 +79,11 @@ class ContestImporter(BaseImporter):
     def do_import(self):
         """Get the contest from the Loader and store it."""
 
+        # We need to check whether the contest has changed *before* calling
+        # get_contest() as that method might reset the "has_changed" bit.
+        if self.update_contest:
+            contest_has_changed = self.loader.contest_has_changed()
+
         # Get the contest
         contest, tasks, participations = self.loader.get_contest()
 
@@ -95,7 +101,7 @@ class ContestImporter(BaseImporter):
                                  .filter(Contest.name == contest.name).first()
             if old_contest is not None:
                 if self.update_contest:
-                    if self.loader.contest_has_changed():
+                    if contest_has_changed:
                         self._update_object(old_contest, contest)
                     contest = old_contest
                 elif self.update_tasks:
@@ -173,21 +179,35 @@ class ContestImporter(BaseImporter):
                                     p.get("team"))
                     return
 
-                # Prepare new participation
-                args = {
-                    "user": user,
-                    "team": team,
-                    "contest": contest,
-                }
+                # Check that the participation is not already defined.
+                participation = session.query(Participation) \
+                    .filter(Participation.user_id == user.id) \
+                    .filter(Participation.contest_id == contest.id) \
+                    .first()
 
-                if "hidden" in p:
-                    args["hidden"] = p["hidden"]
-                if "ip" in p:
-                    args["ip"] = p["ip"]
-                if "password" in p:
-                    args["password"] = p["password"]
+                # FIXME: detect if some details of the participation have been
+                # updated and thus the existing participation needs to be
+                # changed.
+                if participation is None:
+                    # Prepare new participation
+                    args = {
+                        "user": user,
+                        "team": team,
+                        "contest": contest,
+                    }
 
-                session.add(Participation(**args))
+                    if "hidden" in p:
+                        args["hidden"] = p["hidden"]
+                    if "ip" in p:
+                        args["ip"] = p["ip"]
+                    if "password" in p:
+                        args["password"] = p["password"]
+
+                    session.add(Participation(**args))
+                else:
+                    logger.warning("Participation of user %s in this contest "
+                                   "already exists, not going to update it.",
+                                   p["username"])
 
             # Here we could check if there are actually some tasks or
             # users to add: if there are not, then don't create the
