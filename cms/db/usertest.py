@@ -4,7 +4,7 @@
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2012 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
 # Copyright © 2012-2015 Luca Wehrstedt <luca.wehrstedt@gmail.com>
-# Copyright © 2015 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2015-2016 Stefano Maggiolo <s.maggiolo@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -348,7 +348,7 @@ class UserTestResult(Base):
         """Return a filtering expression for compiled user test results.
 
         """
-        return UserTestResult.compilation_outcome != None  # noqa
+        return UserTestResult.compilation_outcome.isnot(None)
 
     def compilation_failed(self):
         """Return whether the user test result did not compile.
@@ -399,7 +399,7 @@ class UserTestResult(Base):
         """Return a filtering lambda for evaluated user test results.
 
         """
-        return UserTestResult.evaluation_outcome != None  # noqa
+        return UserTestResult.evaluation_outcome.isnot(None)
 
     def invalidate_compilation(self):
         """Blank all compilation and evaluation outcomes.

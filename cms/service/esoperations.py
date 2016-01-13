@@ -3,7 +3,7 @@
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2014 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2015 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2010-2016 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
 # Copyright © 2013-2015 Luca Wehrstedt <luca.wehrstedt@gmail.com>
 # Copyright © 2013 Bernard Blackham <bernard@largestprime.net>
@@ -50,9 +50,9 @@ MAX_USER_TEST_COMPILATION_TRIES = 3
 MAX_USER_TEST_EVALUATION_TRIES = 3
 
 
-FILTER_DATASETS_TO_JUDGE = (
-    (SubmissionResult.dataset_id == Task.active_dataset_id) |
-    (Dataset.autojudge == True)  # noqa
+FILTER_SUBMISSION_DATASETS_TO_JUDGE = (
+    (Dataset.id == Task.active_dataset_id) |
+    (Dataset.autojudge.is_(True))
 )
 FILTER_SUBMISSION_RESULTS_TO_COMPILE = (
     (~SubmissionResult.filter_compiled()) &
@@ -62,6 +62,12 @@ FILTER_SUBMISSION_RESULTS_TO_EVALUATE = (
     SubmissionResult.filter_compilation_succeeded() &
     (~SubmissionResult.filter_evaluated()) &
     (SubmissionResult.evaluation_tries < MAX_EVALUATION_TRIES)
+)
+
+
+FILTER_USER_TEST_DATASETS_TO_JUDGE = (
+    (Dataset.id == Task.active_dataset_id) |
+    (Dataset.autojudge.is_(True))
 )
 FILTER_USER_TEST_RESULTS_TO_COMPILE = (
     (~UserTestResult.filter_compiled()) &
@@ -301,32 +307,32 @@ def get_submissions_operations(session, contest_id):
     # instead we take the cartesian product with all the datasets for
     # the correct task.
     to_compile = session.query(Submission)\
-        .join(Task)\
-        .join(Dataset, Dataset.task_id == Task.id)\
+        .join(Submission.task)\
+        .join(Task.datasets)\
         .outerjoin(SubmissionResult,
                    (Dataset.id == SubmissionResult.dataset_id) &
                    (Submission.id == SubmissionResult.submission_id))\
         .filter(
             (Task.contest_id == contest_id) &
-            (FILTER_DATASETS_TO_JUDGE) &
-            (SubmissionResult.dataset_id == None))\
+            (FILTER_SUBMISSION_DATASETS_TO_JUDGE) &
+            (SubmissionResult.dataset_id.is_(None)))\
         .with_entities(Submission.id, Dataset.id,
                        case([
                            (Dataset.id != Task.active_dataset_id,
                             literal(PriorityQueue.PRIORITY_EXTRA_LOW))
                            ], else_=literal(PriorityQueue.PRIORITY_HIGH)),
                        Submission.timestamp)\
-        .all()  # noqa
+        .all()
 
     # Retrieve all the compilation operations for submissions
     # already having a result for a dataset to judge.
     to_compile += session.query(Submission)\
-        .join(Task)\
-        .join(SubmissionResult)\
-        .join(Dataset)\
+        .join(Submission.task)\
+        .join(Submission.results)\
+        .join(SubmissionResult.dataset)\
         .filter(
             (Task.contest_id == contest_id) &
-            (FILTER_DATASETS_TO_JUDGE) &
+            (FILTER_SUBMISSION_DATASETS_TO_JUDGE) &
             (FILTER_SUBMISSION_RESULTS_TO_COMPILE))\
         .with_entities(Submission.id, Dataset.id,
                        case([
@@ -350,19 +356,19 @@ def get_submissions_operations(session, contest_id):
     # so we take the cartesian product with the testcases and later
     # ensure that there is no evaluation associated.
     to_evaluate = session.query(SubmissionResult)\
-        .join(Dataset)\
-        .join(Submission)\
-        .join(Task)\
-        .join(Testcase)\
+        .join(SubmissionResult.dataset)\
+        .join(SubmissionResult.submission)\
+        .join(Submission.task)\
+        .join(Dataset.testcases)\
         .outerjoin(Evaluation,
                    (Evaluation.submission_id == Submission.id) &
                    (Evaluation.dataset_id == Dataset.id) &
                    (Evaluation.testcase_id == Testcase.id))\
         .filter(
             (Task.contest_id == contest_id) &
-            (FILTER_DATASETS_TO_JUDGE) &
+            (FILTER_SUBMISSION_DATASETS_TO_JUDGE) &
             (FILTER_SUBMISSION_RESULTS_TO_EVALUATE) &
-            (Evaluation.id == None))\
+            (Evaluation.id.is_(None)))\
         .with_entities(Submission.id, Dataset.id,
                        case([
                            (Dataset.id != Task.active_dataset_id,
@@ -372,7 +378,7 @@ def get_submissions_operations(session, contest_id):
                            ], else_=literal(PriorityQueue.PRIORITY_LOW)),
                        Submission.timestamp,
                        Testcase.codename)\
-        .all()  # noqa
+        .all()
 
     for data in to_evaluate:
         submission_id, dataset_id, priority, timestamp, codename = data
@@ -402,32 +408,32 @@ def get_user_tests_operations(session, contest_id):
     # instead we take the cartesian product with all the datasets for
     # the correct task.
     to_compile = session.query(UserTest)\
-        .join(Task)\
-        .join(Dataset, Dataset.task_id == Task.id)\
+        .join(UserTest.task)\
+        .join(Task.datasets)\
         .outerjoin(UserTestResult,
                    (Dataset.id == UserTestResult.dataset_id) &
                    (UserTest.id == UserTestResult.user_test_id))\
         .filter(
             (Task.contest_id == contest_id) &
-            (FILTER_DATASETS_TO_JUDGE) &
-            (UserTestResult.dataset_id == None))\
+            (FILTER_USER_TEST_DATASETS_TO_JUDGE) &
+            (UserTestResult.dataset_id.is_(None)))\
         .with_entities(UserTest.id, Dataset.id,
                        case([
                            (Dataset.id != Task.active_dataset_id,
                             literal(PriorityQueue.PRIORITY_EXTRA_LOW))
                            ], else_=literal(PriorityQueue.PRIORITY_HIGH)),
                        UserTest.timestamp)\
-        .all()  # noqa
+        .all()
 
     # Retrieve all the compilation operations for user_tests
     # already having a result for a dataset to judge.
     to_compile += session.query(UserTest)\
-        .join(Task)\
-        .join(UserTestResult)\
-        .join(Dataset)\
+        .join(UserTest.task)\
+        .join(UserTest.results)\
+        .join(UserTestResult.dataset)\
         .filter(
             (Task.contest_id == contest_id) &
-            (FILTER_DATASETS_TO_JUDGE) &
+            (FILTER_USER_TEST_DATASETS_TO_JUDGE) &
             (FILTER_USER_TEST_RESULTS_TO_COMPILE))\
         .with_entities(UserTest.id, Dataset.id,
                        case([
@@ -449,12 +455,12 @@ def get_user_tests_operations(session, contest_id):
     # that is, all pairs (user_test, dataset) for which we have a
     # user test result which is compiled but not evaluated.
     to_evaluate = session.query(UserTest)\
-        .join(Task)\
-        .join(UserTestResult)\
-        .join(Dataset)\
+        .join(UserTest.task)\
+        .join(UserTest.results)\
+        .join(UserTestResult.dataset)\
         .filter(
             (Task.contest_id == contest_id) &
-            (FILTER_DATASETS_TO_JUDGE) &
+            (FILTER_USER_TEST_DATASETS_TO_JUDGE) &
             (FILTER_USER_TEST_RESULTS_TO_EVALUATE))\
         .with_entities(UserTest.id, Dataset.id,
                        case([

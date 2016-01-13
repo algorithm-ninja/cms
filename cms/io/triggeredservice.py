@@ -313,10 +313,10 @@ class TriggeredService(Service):
 
     def _sweep(self):
         """Check for missed operations."""
-        logger.info("[TS] Start looking for missing operations.")
+        logger.info("Start looking for missing operations.")
         start_time = time.time()
         counter = self._missing_operations()
-        logger.info("[TS] Found %d missed operation(s) in %d ms.",
+        logger.info("Found %d missed operation(s) in %d ms.",
                     counter, (time.time() - start_time) * 1000)
 
     def _missing_operations(self):
