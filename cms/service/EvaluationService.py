@@ -476,8 +476,9 @@ class EvaluationService(TriggeredService):
         if self.operation_busy(operation):
             return False
 
+        # enqueue() returns the number of successful pushes.
         return super(EvaluationService, self).enqueue(
-            operation, priority, timestamp)
+            operation, priority, timestamp) > 0
 
     @with_post_finish_lock
     def action_finished(self, data, plus, error=None):

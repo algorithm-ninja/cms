@@ -53,8 +53,6 @@ import sys
 
 import gevent.coros
 
-from threading import current_thread
-
 from cmscommon.terminal import colors, add_color_to_string, has_color_support
 
 
