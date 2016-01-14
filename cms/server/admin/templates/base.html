@@ -66,7 +66,16 @@ $(document).ready(init);
   <body class="admin">
     <div id="global">
       <div id="sidebar">
+{% if current_user is None %}
         <div id="sidebar_header">
+          <h1 class="parent">Administration</h1>
+        </div>
+{% else %}
+        <div id="sidebar_header">
+          <div class="login_notice">
+            Hello, <a href="{{ url_root }}/admins">{{ current_user.name }}</a>.
+              Logout <a href="{{ url_root }}/logout">here</a>.
+          </div>
           {% if contest is None %}
           <h1 class="parent">Administration</h1>
           {% else %}
@@ -112,11 +121,13 @@ $(document).ready(init);
           </li>
           {% end %}
 
+{% if current_user.permission_all %}
           <li class="menu_entry">
             <a class="menu_link" href="{{ url_root }}/contests/add">
               (create new contest...)
             </a>
           </li>
+{% end %}
         </ul>
 
         <h1>Tasks</h1>
@@ -143,11 +154,13 @@ $(document).ready(init);
           </li>
           {% end %}
 
+{% if current_user.permission_all %}
           <li class="menu_entry">
             <a class="menu_link" href="{{ url_root }}/tasks/add">
               (create new task...)
             </a>
           </li>
+{% end %}
         </ul>
 
         <h1>Users</h1>
@@ -193,11 +206,13 @@ $(document).ready(init);
             </li>
           {% end %}
 
+{% if current_user.permission_all %}
           <li class="menu_entry">
             <a class="menu_link" href="{{ url_root }}/teams/add">
               (create new team...)
             </a>
           </li>
+{% end %}
         </ul>
         {% else %}
           <ul class="menu">
@@ -220,6 +235,7 @@ $(document).ready(init);
           <div class="footer">Time left: <span id="remaining"></span></div>
           {% end %}
         {% end %}
+{% end %}
         <div class="cr_notice">CMS <a href="http://github.com/cms-dev/cms/">codebase</a> is released under the<br/><a href="http://www.gnu.org/licenses/agpl.txt">GNU Affero General Public License</a>.</div>
       </div>
 

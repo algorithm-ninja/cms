@@ -25,6 +25,8 @@ from .base import \
     SimpleHandler, \
     SimpleContestHandler
 from .main import \
+    LoginHandler, \
+    LogoutHandler, \
     ResourcesHandler, \
     NotificationsHandler
 from .contest import \
@@ -78,6 +80,10 @@ from .user import \
     EditParticipationHandler, \
     AddTeamHandler, \
     TeamHandler
+from .admin import \
+    AddAdminHandler, \
+    AdminsHandler, \
+    AdminHandler
 from .submission import \
     SubmissionHandler, \
     SubmissionCommentHandler, \
@@ -87,6 +93,8 @@ from .submission import \
 
 HANDLERS = [
     (r"/", OverviewHandler),
+    (r"/login", LoginHandler),
+    (r"/logout", LogoutHandler),
     (r"/resourceslist", ResourcesListHandler),
     (r"/resources", ResourcesHandler),
     (r"/resources/([0-9]+|all)", ResourcesHandler),
@@ -170,6 +178,12 @@ HANDLERS = [
     (r"/team/([0-9]+)", TeamHandler),
     (r"/user/([0-9]+)/add_participation", AddParticipationHandler),
     (r"/user/([0-9]+)/edit_participation", EditParticipationHandler),
+
+    # Admins
+
+    (r"/admins", AdminsHandler),
+    (r"/admins/add", AddAdminHandler),
+    (r"/admin/([0-9]+)", AdminHandler),
 
     # Submissions
 
