@@ -179,9 +179,9 @@ $(document).ready(function () {
                                 <a href="{{ url_root }}/documentation">{{ _("Documentation") }}</a>
                             </li>
     {% if actual_phase == 0 %}{% comment FIXME maybe >= 0? %}
-                            <li{% if request.path == '/testing' %} class="active"{% end %}>
+                            <!-- <li{% if request.path == '/testing' %} class="active"{% end %}>
                                 <a href="{{ url_root }}/testing">{{ _("Testing") }}</a>
-                            </li>
+                            </li> -->
         {% if printing_enabled %}
                             <li{% if request.path == '/printing' %} class="active"{% end %}>
                                 <a href="{{ url_root }}/printing">{{ _("Printing") }}</a>
