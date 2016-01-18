@@ -43,6 +43,18 @@
       </td>
     </tr>
     <tr>
+      <td><label for="block_hidden_participations">Block hidden participations</label></td>
+      <td>
+        <input type="checkbox" id="block_hidden_participations" name="block_hidden_participations" {{ "checked" if contest.block_hidden_participations else "" }}/>
+      </td>
+    </tr>
+    <tr>
+      <td><label for="ip_restriction">IP based login restriction</label></td>
+      <td>
+        <input type="checkbox" id="ip_restriction" name="ip_restriction" {{ "checked" if contest.ip_restriction else "" }}/>
+      </td>
+    </tr>
+    <tr>
       <td><label for="ip_autologin">IP based autologin</label></td>
       <td>
         <input type="checkbox" id="ip_autologin" name="ip_autologin" {{ "checked" if contest.ip_autologin else "" }}/>
@@ -119,7 +131,12 @@
       <td><input type="text" name="score_precision" value="{{ contest.score_precision }}"></td>
     </tr>
   </table>
-  <input type="submit" value="Update">
+  <input type="submit"
+         value="Update"
+{% if not current_user.permission_all %}
+         disabled
+{% end %}
+         >
   <input type="reset" value="Reset">
 </form>
 

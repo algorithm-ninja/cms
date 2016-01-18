@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Contest Management System - http://cms-dev.github.io/
-# Copyright © 2015-2016 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2015 Stefano Maggiolo <s.maggiolo@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -17,23 +17,32 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Utilities to generate "unique" test ids."""
+"""A class to update a dump created by CMS.
+
+Used by ContestImporter and DumpUpdater.
+
+This updater just adds the default values for the new fields
+(block_hidden_participations and ip_restriction).
+
+"""
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import unicode_literals
-
-import random
-
-
-def unique_long_id():
-    """Return a unique id of type long."""
-    if not hasattr(unique_long_id, "id"):
-        unique_long_id.id = random.random()
-    unique_long_id.id += 1
-    return unique_long_id.id
+from __future__ import print_function
 
 
-def unique_unicode_id():
-    """Return a unique id of type unicode."""
-    return unicode(unique_long_id())
+class Updater(object):
+
+    def __init__(self, data):
+        assert data["_version"] == 18
+        self.objs = data
+
+    def run(self):
+        for k, v in self.objs.iteritems():
+            if k.startswith("_"):
+                continue
+            if v["_class"] == "Contest":
+                v["block_hidden_participations"] = False
+                v["ip_restriction"] = True
+
+        return self.objs

@@ -59,7 +59,7 @@ On Ubuntu 14.10, one will need to run the following script to satisfy all depend
 
     # Optional
     sudo apt-get install nginx-full php5-cli php5-fpm phppgadmin \
-         texlive-latex-base a2ps
+         texlive-latex-base a2ps gcj-jdk
 
 Arch Linux
 ----------
@@ -213,7 +213,7 @@ To install CMS python dependencies on Ubuntu, you can issue:
          python-sqlalchemy python-psutil python-netifaces python-crypto \
          python-tz python-six python-beautifulsoup python-mechanize \
          python-coverage python-mock python-requests python-werkzeug \
-         python-gevent patool
+         python-gevent python-bcrypt patool
 
     # Optional.
     # sudo apt-get install python-yaml python-sphinx python-cups python-pypdf2

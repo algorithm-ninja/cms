@@ -38,13 +38,14 @@ import tornado.web
 from cms.db import Attachment, Dataset, Session, Statement, Submission, Task
 from cmscommon.datetime import make_datetime
 
-from .base import BaseHandler, SimpleHandler
+from .base import BaseHandler, SimpleHandler, require_permission
 
 
 logger = logging.getLogger(__name__)
 
 
 class AddTaskHandler(SimpleHandler("add_task.html")):
+    @require_permission(BaseHandler.PERMISSION_ALL)
     def post(self):
         fallback_page = "/tasks/add"
 
@@ -123,6 +124,7 @@ class TaskHandler(BaseHandler):
     """Task handler, with a POST method to edit the task.
 
     """
+    @require_permission(BaseHandler.AUTHENTICATED)
     def get(self, task_id):
         task = self.safe_get_item(Task, task_id)
 
@@ -134,6 +136,7 @@ class TaskHandler(BaseHandler):
                 .order_by(Submission.timestamp.desc()).all()
         self.render("task.html", **self.r_params)
 
+    @require_permission(BaseHandler.PERMISSION_ALL)
     def post(self, task_id):
         task = self.safe_get_item(Task, task_id)
 
@@ -211,6 +214,7 @@ class AddStatementHandler(BaseHandler):
     """Add a statement to a task.
 
     """
+    @require_permission(BaseHandler.PERMISSION_ALL)
     def get(self, task_id):
         task = self.safe_get_item(Task, task_id)
 
@@ -218,6 +222,7 @@ class AddStatementHandler(BaseHandler):
         self.r_params["task"] = task
         self.render("add_statement.html", **self.r_params)
 
+    @require_permission(BaseHandler.PERMISSION_ALL)
     def post(self, task_id):
         fallback_page = "/task/%s/statements/add" % task_id
 
@@ -276,6 +281,7 @@ class StatementHandler(BaseHandler):
     """
     # No page for single statements.
 
+    @require_permission(BaseHandler.PERMISSION_ALL)
     def delete(self, task_id, statement_id):
         statement = self.safe_get_item(Statement, statement_id)
         task = self.safe_get_item(Task, task_id)
@@ -295,6 +301,7 @@ class AddAttachmentHandler(BaseHandler):
     """Add an attachment to a task.
 
     """
+    @require_permission(BaseHandler.PERMISSION_ALL)
     def get(self, task_id):
         task = self.safe_get_item(Task, task_id)
 
@@ -302,6 +309,7 @@ class AddAttachmentHandler(BaseHandler):
         self.r_params["task"] = task
         self.render("add_attachment.html", **self.r_params)
 
+    @require_permission(BaseHandler.PERMISSION_ALL)
     def post(self, task_id):
         fallback_page = "/task/%s/attachments/add" % task_id
 
@@ -344,6 +352,7 @@ class AttachmentHandler(BaseHandler):
     """
     # No page for single attachments.
 
+    @require_permission(BaseHandler.PERMISSION_ALL)
     def delete(self, task_id, attachment_id):
         attachment = self.safe_get_item(Attachment, attachment_id)
         task = self.safe_get_item(Task, task_id)
@@ -367,7 +376,9 @@ class AddDatasetHandler(BaseHandler):
 
     If referred by GET, this handler will return a HTML form.
     If referred by POST, this handler will create the dataset.
+
     """
+    @require_permission(BaseHandler.PERMISSION_ALL)
     def get(self, task_id):
         task = self.safe_get_item(Task, task_id)
 
@@ -382,6 +393,7 @@ class AddDatasetHandler(BaseHandler):
         self.r_params["default_description"] = description
         self.render("add_dataset.html", **self.r_params)
 
+    @require_permission(BaseHandler.PERMISSION_ALL)
     def post(self, task_id):
         fallback_page = "/task/%s/add_dataset" % task_id
 

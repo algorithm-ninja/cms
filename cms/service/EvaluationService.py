@@ -3,7 +3,7 @@
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2014 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2015 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2010-2016 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
 # Copyright © 2013-2015 Luca Wehrstedt <luca.wehrstedt@gmail.com>
 # Copyright © 2013 Bernard Blackham <bernard@largestprime.net>
@@ -51,7 +51,7 @@ from cms.service import get_datasets_to_judge, \
     get_submissions, get_submission_results
 from cms.grading.Job import Job
 
-from .operations import ESOperation, get_relevant_operations, \
+from .esoperations import ESOperation, get_relevant_operations, \
     get_submissions_operations, get_user_tests_operations, \
     submission_get_operations, submission_to_evaluate, \
     user_test_get_operations
@@ -177,6 +177,28 @@ class EvaluationService(TriggeredService):
         super(EvaluationService, self).__init__(shard)
 
         self.contest_id = contest_id
+
+        # This lock is used to avoid inserting in the queue (which
+        # itself is already thread-safe) an operation which is already
+        # being processed. Such operation might be in one of the
+        # following state:
+        # 1. in the queue;
+        # 2. extracted from the queue by the executor, but not yet
+        #    dispatched to a worker;
+        # 3. being processed by a worker ("in the worker pool");
+        # 4. being processed by action_finished, but with the results
+        #    not yet written to the database.
+        # 5. with results written in the database.
+        #
+        # The methods enqueuing operations already check that the
+        # operation is not in state 5, and enqueue() checks that it is
+        # not in the first three states.
+        #
+        # Therefore, the lock guarantees that the methods adding
+        # operations to the queue (_missing_operations,
+        # invalidate_submission, enqueue) are not executed
+        # concurrently with action_finished to avoid picking
+        # operations in state 4.
         self.post_finish_lock = gevent.coros.RLock()
 
         self.scoring_service = self.connect_to(
@@ -454,8 +476,9 @@ class EvaluationService(TriggeredService):
         if self.operation_busy(operation):
             return False
 
+        # enqueue() returns the number of successful pushes.
         return super(EvaluationService, self).enqueue(
-            operation, priority, timestamp)
+            operation, priority, timestamp) > 0
 
     @with_post_finish_lock
     def action_finished(self, data, plus, error=None):
@@ -501,25 +524,23 @@ class EvaluationService(TriggeredService):
             try:
                 job = Job.import_from_dict_with_type(data)
             except:
-                logger.error("[action_finished] Couldn't build Job for "
-                             "data %s.", data, exc_info=True)
+                logger.error("Couldn't build Job for data %s.", data,
+                             exc_info=True)
                 job_success = False
 
             else:
                 if not job.success:
-                    logger.error("Worker %s signaled action "
-                                 "not successful.", shard)
+                    logger.error("Worker %s signaled action not successful.",
+                                 shard)
                     job_success = False
 
-        logger.info("[action_finished] `%s' completed. Success: %s.",
-                    operation, job_success)
+        logger.info("`%s' completed. Success: %s.", operation, job_success)
 
         # We get the submission from DB and update it.
         with SessionGen() as session:
             dataset = Dataset.get_from_id(dataset_id, session)
             if dataset is None:
-                logger.error("[action_finished] Could not find "
-                             "dataset %d in the database.",
+                logger.error("Could not find dataset %d in the database.",
                              dataset_id)
                 return
 
@@ -529,16 +550,15 @@ class EvaluationService(TriggeredService):
             if type_ == ESOperation.COMPILATION:
                 submission = Submission.get_from_id(object_id, session)
                 if submission is None:
-                    logger.error("[action_finished] Could not find "
-                                 "submission %d in the database.",
-                                 object_id)
+                    logger.error("Could not find submission %d "
+                                 "in the database.", object_id)
                     return
 
                 submission_result = submission.get_result(dataset)
                 if submission_result is None:
-                    logger.info("[action_finished] Couldn't find "
-                                "submission %d(%d) in the database. "
-                                "Creating it.", object_id, dataset_id)
+                    logger.info("Couldn't find submission %d(%d) "
+                                "in the database. Creating it.",
+                                object_id, dataset_id)
                     submission_result = \
                         submission.get_result_or_create(dataset)
 
@@ -554,16 +574,14 @@ class EvaluationService(TriggeredService):
             elif type_ == ESOperation.EVALUATION:
                 submission = Submission.get_from_id(object_id, session)
                 if submission is None:
-                    logger.error("[action_finished] Could not find "
-                                 "submission %d in the database.",
-                                 object_id)
+                    logger.error("Could not find submission %d "
+                                 "in the database.", object_id)
                     return
 
                 submission_result = submission.get_result(dataset)
                 if submission_result is None:
-                    logger.error("[action_finished] Couldn't find "
-                                 "submission %d(%d) in the database.",
-                                 object_id, dataset_id)
+                    logger.error("Couldn't find submission %d(%d) "
+                                 "in the database.", object_id, dataset_id)
                     return
 
                 if job_success:
@@ -586,16 +604,15 @@ class EvaluationService(TriggeredService):
             elif type_ == ESOperation.USER_TEST_COMPILATION:
                 user_test = UserTest.get_from_id(object_id, session)
                 if user_test is None:
-                    logger.error("[action_finished] Could not find "
-                                 "user test %d in the database.",
-                                 object_id)
+                    logger.error("Could not find user test %d "
+                                 "in the database.", object_id)
                     return
 
                 user_test_result = user_test.get_result(dataset)
                 if user_test_result is None:
-                    logger.error("[action_finished] Couldn't find "
-                                 "user test %d(%d) in the database. "
-                                 "Creating it.", object_id, dataset_id)
+                    logger.error("Couldn't find user test %d(%d) "
+                                 "in the database. Creating it.",
+                                 object_id, dataset_id)
                     user_test_result = \
                         user_test.get_result_or_create(dataset)
 
@@ -611,16 +628,14 @@ class EvaluationService(TriggeredService):
             elif type_ == ESOperation.USER_TEST_EVALUATION:
                 user_test = UserTest.get_from_id(object_id, session)
                 if user_test is None:
-                    logger.error("[action_finished] Could not find "
-                                 "user test %d in the database.",
-                                 object_id)
+                    logger.error("Could not find user test %d "
+                                 "in the database.", object_id)
                     return
 
                 user_test_result = user_test.get_result(dataset)
                 if user_test_result is None:
-                    logger.error("[action_finished] Couldn't find "
-                                 "user test %d(%d) in the database.",
-                                 object_id, dataset_id)
+                    logger.error("Couldn't find user test %d(%d) "
+                                 "in the database.", object_id, dataset_id)
                     return
 
                 if job_success:
@@ -638,7 +653,7 @@ class EvaluationService(TriggeredService):
 
     def compilation_ended(self, submission_result):
         """Actions to be performed when we have a submission that has
-        ended compilation . In particular: we queue evaluation if
+        ended compilation. In particular: we queue evaluation if
         compilation was ok, we inform ScoringService if the
         compilation failed for an error in the submission, or we
         requeue the compilation if there was an error in CMS.
