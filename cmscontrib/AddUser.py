@@ -2,12 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Contest Management System - http://cms-dev.github.io/
-# Copyright © 2012 Bernard Blackham <bernard@largestprime.net>
-# Copyright © 2010-2011 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2016 Stefano Maggiolo <s.maggiolo@gmail.com>
-# Copyright © 2010-2011 Matteo Boscariol <boscarim@hotmail.com>
-# Copyright © 2014-2015 William Di Luigi <williamdiluigi@gmail.com>
-# Copyright © 2015 Luca Chiodini <luca@chiodini.org>
+# Copyright © 2016 Stefano Maggiolo <s.maggiolo@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -22,11 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""This script imports a user from disk using one of the available
-loaders.
-
-The data parsed by the loader is used to create a new User in the
-database.
+"""This script creates a new user in the database.
 
 """
 
@@ -41,136 +32,75 @@ gevent.monkey.patch_all()
 
 import argparse
 import logging
-import os
+import sys
 
 from cms import utf8_decoder
-from cms.db import Contest, Participation, SessionGen, User
-from cms.db.filecacher import FileCacher
+from cms.db import SessionGen, User
+from cmscommon.crypto import generate_random_password
 
-from cmscontrib.loaders import choose_loader, build_epilog
+from sqlalchemy.exc import IntegrityError
 
 
 logger = logging.getLogger(__name__)
 
 
-class UserImporter(object):
-
-    """This script creates a user
-
-    """
-
-    def __init__(self, path, contest_id, loader_class):
-        self.file_cacher = FileCacher()
-        self.contest_id = contest_id
-        self.loader = loader_class(os.path.abspath(path), self.file_cacher)
-
-    def do_import(self):
-        """Get the user from the UserLoader and store it."""
-
-        # Get the user
-        user = self.loader.get_user()
-        if user is None:
-            return
-
-        # Store
-        logger.info("Creating user %s on the database.", user.username)
+def add_user(first_name, last_name, username, password, email, timezone,
+             preferred_languages):
+    logger.info("Creating the user in the database.")
+    if password is None:
+        password = generate_random_password()
+    if preferred_languages is None or preferred_languages == "":
+        preferred_languages = "[]"
+    else:
+        preferred_languages = \
+            "[" + ",".join("\"" + lang + "\""
+                           for lang in preferred_languages.split(",")) + "]"
+    user = User(first_name=first_name,
+                last_name=last_name,
+                username=username,
+                password=password,
+                email=email,
+                timezone=timezone,
+                preferred_languages=preferred_languages)
+    try:
         with SessionGen() as session:
-            if self.contest_id is not None:
-                contest = session.query(Contest)\
-                                 .filter(Contest.id == self.contest_id)\
-                                 .first()
-
-                if contest is None:
-                    logger.critical(
-                        "The specified contest (id %s) does not exist. "
-                        "Aborting.",
-                        self.contest_id)
-                    return
-
-            # Check whether the user already exists
-            old_user = session.query(User) \
-                              .filter(User.username == user.username) \
-                              .first()
-            if old_user is not None:
-                logger.critical("The user already exists.")
-                return
-
             session.add(user)
-
-            if self.contest_id is not None:
-                logger.info("Creating participation of user %s in contest %s.",
-                            user.username, contest.name)
-                participation = Participation(user=user, contest=contest)
-                session.add(participation)
-
             session.commit()
-            user_id = user.id
+    except IntegrityError:
+        logger.error("A user with the given username already exists.")
+        return False
 
-        logger.info("Import finished (new user id: %s).", user_id)
-
-    def do_import_all(self, base_path, get_loader):
-        """Get the participation list from the ContestLoader and then
-        try to import the corresponding users."""
-
-        _, _, participations = self.loader.get_contest()
-        for p in participations:
-            user_path = os.path.join(base_path, p["username"])
-            UserImporter(
-                path=user_path,
-                contest_id=self.contest_id,
-                loader_class=get_loader(user_path)
-            ).do_import()
+    logger.info("User added. "
+                "Use AddParticipation to add this user to a contest.")
+    return True
 
 
 def main():
     """Parse arguments and launch process.
 
     """
-    parser = argparse.ArgumentParser(
-        description="Add a user to the database.",
-        epilog=build_epilog(),
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-
-    parser.add_argument(
-        "-L", "--loader",
-        action="store", type=utf8_decoder,
-        default=None,
-        help="use the specified loader (default: autodetect)"
-    )
-    parser.add_argument(
-        "target",
-        action="store", type=utf8_decoder, nargs="?",
-        default=os.getcwd(),
-        help="target file/directory from where to import user(s)"
-    )
-    parser.add_argument(
-        "-A", "--all",
-        action="store_const", const="a",
-        default=None,
-        help="try to import all users inside target"
-    )
-    parser.add_argument(
-        "-c", "--contest-id",
-        action="store", type=int,
-        help="id of the contest the users will be attached to"
-    )
+    parser = argparse.ArgumentParser(description="Add a user to CMS.")
+    parser.add_argument("first_name", action="store", type=utf8_decoder,
+                        help="given name of the user")
+    parser.add_argument("last_name", action="store", type=utf8_decoder,
+                        help="family name of the user")
+    parser.add_argument("username", action="store", type=utf8_decoder,
+                        help="username used to log in")
+    parser.add_argument("-p", "--password", action="store", type=utf8_decoder,
+                        help="password, leave empty to auto-generate")
+    parser.add_argument("-e", "--email", action="store", type=utf8_decoder,
+                        help="email of the user")
+    parser.add_argument("-t", "--timezone", action="store", type=utf8_decoder,
+                        help="timezone of the user, e.g. Europe/London")
+    parser.add_argument("-l", "--languages", action="store", type=utf8_decoder,
+                        help="comma-separated list of preferred languages")
 
     args = parser.parse_args()
 
-    def get_loader(path):
-        return choose_loader(args.loader, path, parser.error)
+    return add_user(args.first_name, args.last_name,
+                    args.username, args.password, args.email,
+                    args.timezone, args.languages)
 
-    importer = UserImporter(
-        path=args.target,
-        contest_id=args.contest_id,
-        loader_class=get_loader(args.target)
-    )
-
-    if args.all:
-        importer.do_import_all(args.target, get_loader)
-    else:
-        importer.do_import()
 
 if __name__ == "__main__":
-    main()
+    sys.exit(0 if main() is True else 1)
