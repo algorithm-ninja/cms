@@ -34,8 +34,10 @@ var utils = new CMS.CWSUtils("{{ url_root }}",
                              {{ make_timestamp(current_phase_end) }},
                              {{ actual_phase }});
 $(document).ready(function () {
-    utils.update_time();
-    setInterval(function() { utils.update_time(); }, 1000);
+    utils.update_time({{ "true" if contest.per_user_time is not None else "false" }});
+    setInterval(function() {
+        utils.update_time({{ "true" if contest.per_user_time is not None else "false" }});
+    }, 1000);
     utils.update_notifications();
     setInterval(function() { utils.update_notifications(); }, 30000);
     $('#main').css('top', $('#navigation_bar').outerHeight());
@@ -63,7 +65,7 @@ $(document).ready(function () {
 {% end %}
 {% if current_user is not None %}
                     <p class="navbar-text pull-right">
-                        {% raw _("Logged in as <strong>%(first_name)s %(last_name)s</strong> <em>(%(username)s)</em>") % {"first_name": current_user.user.first_name, "last_name": current_user.user.last_name, "username": current_user.user.username} %}
+                        {% raw _("Logged in as <strong>%(first_name)s %(last_name)s</strong> <em>(%(username)s)</em>") % {"first_name": escape(current_user.user.first_name), "last_name": escape(current_user.user.last_name), "username": escape(current_user.user.username)} %}
                         <a class="btn btn-warning" href="{{ url_root }}/logout">{{ _("Logout") }}</a>
                     </p>
 {% end %}

@@ -8,6 +8,7 @@
 # Copyright © 2013 Luca Wehrstedt <luca.wehrstedt@gmail.com>
 # Copyright © 2014 Artem Iglikov <artem.iglikov@gmail.com>
 # Copyright © 2015 William Di Luigi <williamdiluigi@gmail.com>
+# Copyright © 2016 Myungwoo Chun <mc.tamaki@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -31,6 +32,8 @@ from __future__ import print_function
 # setuptools doesn't seem to like this:
 # from __future__ import unicode_literals
 
+import io
+import re
 import os
 
 from setuptools import setup, find_packages
@@ -76,9 +79,20 @@ PACKAGE_DATA = {
 }
 
 
+def find_version():
+    """Return the version string obtained from cms/__init__.py"""
+    path = os.path.join("cms", "__init__.py")
+    version_file = io.open(path, "rt", encoding="utf-8").read()
+    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
+                              version_file, re.M)
+    if version_match is not None:
+        return version_match.group(1)
+    raise RuntimeError("Unable to find version string.")
+
+
 setup(
     name="cms",
-    version="1.3.dev0",
+    version=find_version(),
     author="The CMS development team",
     author_email="contestms@freelists.org",
     url="https://github.com/cms-dev/cms",
@@ -109,16 +123,20 @@ setup(
             "cmsAuthServer=cmscontrib.AuthServer:main",
             "cmsAddUser=cmscontrib.AddUser:main",
             "cmsAddTeam=cmscontrib.AddTeam:main",
+            "cmsAddParticipation=cmscontrib.AddParticipation:main",
+            "cmsAddSubmission=cmscontrib.AddSubmission:main",
             "cmsRemoveUser=cmscontrib.RemoveUser:main",
-            "cmsAddTask=cmscontrib.AddTask:main",
             "cmsRemoveTask=cmscontrib.RemoveTask:main",
+            "cmsImportUser=cmscontrib.ImportUser:main",
+            "cmsImportTeam=cmscontrib.ImportTeam:main",
+            "cmsImportContest=cmscontrib.ImportContest:main",
+            "cmsImportTask=cmscontrib.ImportTask:main",
             "cmsComputeComplexity=cmscontrib.ComputeComplexity:main",
-            "cmsAddContest=cmscontrib.AddContest:main",
+            "cmsExportSubmissions=cmscontrib.ExportSubmissions:main",
+            "cmsAddAdmin=cmscontrib.AddAdmin:main",
             "cmsDumpExporter=cmscontrib.DumpExporter:main",
             "cmsDumpImporter=cmscontrib.DumpImporter:main",
             "cmsSpoolExporter=cmscontrib.SpoolExporter:main",
-            "cmsContestExporter=cmscontrib.ContestExporter:main",
-            "cmsContestImporter=cmscontrib.ContestImporter:main",
             "cmsDumpUpdater=cmscontrib.DumpUpdater:main",
             "cmsRWSHelper=cmscontrib.RWSHelper:main",
             "cmsMake=cmstaskenv.cmsMake:main",

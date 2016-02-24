@@ -40,8 +40,9 @@ from functools import wraps
 import tornado.web
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import subqueryload
 
+from cms import __version__
 from cms.db import Admin, Contest, Participation, Question, \
     Submission, SubmissionFormatElement, SubmissionResult, Task, Team, User
 from cms.grading.scoretypes import get_score_type_class
@@ -284,6 +285,8 @@ class BaseHandler(CommonRequestHandler):
 
         """
         params = {}
+        params["rtd_version"] = "latest" if "dev" in __version__ \
+                                else "v" + __version__[:3]
         params["timestamp"] = make_datetime()
         params["contest"] = self.contest
         params["url_root"] = get_url_root(self.request.path)
@@ -510,12 +513,12 @@ class BaseHandler(CommonRequestHandler):
 
         """
         query = query\
-            .options(joinedload(Submission.task))\
-            .options(joinedload(Submission.participation))\
-            .options(joinedload(Submission.files))\
-            .options(joinedload(Submission.token))\
-            .options(joinedload(Submission.results)
-                     .joinedload(SubmissionResult.evaluations))\
+            .options(subqueryload(Submission.task))\
+            .options(subqueryload(Submission.participation))\
+            .options(subqueryload(Submission.files))\
+            .options(subqueryload(Submission.token))\
+            .options(subqueryload(Submission.results)
+                     .subqueryload(SubmissionResult.evaluations))\
             .order_by(Submission.timestamp.desc())
 
         offset = page * page_size
