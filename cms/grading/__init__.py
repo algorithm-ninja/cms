@@ -212,130 +212,6 @@ class JobException(Exception):
         return "JobException(\"%s\")" % (repr(self.msg))
 
 
-def get_compilation_commands(language, source_filenames, executable_filename,
-                             for_evaluation=True, with_grader=False):
-    """Return the compilation commands.
-
-    The compilation commands are for the specified language, source
-    filenames and executable filename. Each command is a list of
-    strings, suitable to be passed to the methods in subprocess
-    package.
-
-    language (string): one of the recognized languages.
-    source_filenames ([string]): a list of the string that are the
-        filenames of the source files to compile; the order is
-        relevant: the first file must be the one that contains the
-        program entry point (with some langages, e.g. Pascal, only the
-        main file must be passed to the compiler).
-    executable_filename (string): the output file.
-    for_evaluation (bool): if True, define EVAL during the compilation;
-        defaults to True.
-
-    return ([[string]]): a list of commands, each a list of strings to
-        be passed to subprocess.
-
-    """
-    commands = []
-    if language == LANG_C:
-        command = ["/usr/bin/gcc"]
-        if for_evaluation:
-            command += ["-DEVAL"]
-        command += ["-static", "-O2", "-std=c11",
-                    "-o", executable_filename]
-        command += source_filenames
-        command += ["-lm"]
-        commands.append(command)
-    elif language == LANG_CPP:
-        command = ["/usr/bin/g++"]
-        if for_evaluation:
-            command += ["-DEVAL"]
-        command += ["-static", "-O2", "-std=c++11",
-                    "-o", executable_filename]
-        command += source_filenames
-        commands.append(command)
-    elif language == LANG_PASCAL:
-        command = ["/usr/bin/fpc"]
-        if for_evaluation:
-            command += ["-dEVAL"]
-        command += ["-XS", "-O2", "-o%s" % executable_filename]
-        command += [source_filenames[0]]
-        commands.append(command)
-    elif language == LANG_PYTHON:
-        # The executable name is fixed, and there is no way to specify
-        # the name of the pyc, so we need to bundle together two
-        # commands (compilation and rename).
-        py_command = ["/usr/bin/python" + config.python_version, "-m",
-                      "py_compile", source_filenames[0]]
-
-        if config.python_version == "3":
-            pyc_name = "__pycache__/%s.cpython-34.pyc"
-        else:
-            pyc_name = "%s.pyc"
-
-        mv_command = ["/bin/mv", pyc_name % os.path.splitext(os.path.basename(
-                      source_filenames[0]))[0], executable_filename]
-
-        commands.append(py_command)
-        commands.append(mv_command)
-    elif language == LANG_PHP:
-        command = ["/bin/cp", source_filenames[0], executable_filename]
-        commands.append(command)
-    elif language == LANG_JAVA:
-        class_name = os.path.splitext(source_filenames[0])[0]
-        command = ["/usr/bin/javac"] + source_filenames
-        executable_class_name = class_name
-        if with_grader:
-            executable_class_name = "grader"
-        # jar_command = ["/bin/bash", "-c", "/usr/bin/jar cfe %s.jar %s *.class" %
-        #     (class_name, executable_class_name)]
-        # mv_command = ["/bin/mv", "%s.jar" % class_name, executable_filename]
-        zip_command = ["/bin/bash", "-c", "/usr/bin/zip %s.zip *.class" %
-            (class_name, )]
-        mv_command = ["/bin/mv", "%s.zip" % class_name, executable_filename]
-        commands.append(command)
-        # commands.append(jar_command)
-        commands.append(zip_command)
-        commands.append(mv_command)
-    else:
-        raise ValueError("Unknown language %s." % language)
-    return commands
-
-
-def get_evaluation_commands(language, executable_filename):
-    """Return the evaluation commands.
-
-    The evaluation commands are for the given language and executable
-    filename. Each command is a list of strings, suitable to be passed
-    to the methods in subprocess package.
-
-    language (string): one of the recognized languages.
-    executable_filename (string): the name of the executable.
-
-    return ([[string]]): a list of string to be passed to subprocess.
-
-    """
-    commands = []
-    if language in (LANG_C, LANG_CPP, LANG_PASCAL):
-        command = [os.path.join(".", executable_filename)]
-        commands.append(command)
-    elif language == LANG_PYTHON:
-        command = ["/usr/bin/python" + config.python_version,
-                   executable_filename]
-        commands.append(command)
-    elif language == LANG_PHP:
-        command = ["/usr/bin/php5", executable_filename]
-        commands.append(command)
-    elif language == LANG_JAVA:
-        command = ["/usr/bin/unzip", executable_filename]
-        commands.append(command)
-        command = ["/usr/bin/java", "-Djava.library.path=.", "-Xmx512M",
-                   "-Xss64M", executable_filename]
-        commands.append(command)
-    else:
-        raise ValueError("Unknown language %s." % language)
-    return commands
-
-
 def format_status_text(status, translator=None):
     """Format the given status text in the given locale.
 
@@ -541,14 +417,10 @@ def evaluation_step(sandbox, commands,
 
     """
     for command in commands:
-        non_secure = False
-        if "unzip" in command[0]:
-            non_secure = True
-
         success = evaluation_step_before_run(
             sandbox, command, time_limit, memory_limit,
             allow_dirs, writable_files,
-            stdin_redirect, stdout_redirect, wait=True, non_secure=non_secure)
+            stdin_redirect, stdout_redirect, wait=True)
         if not success:
             logger.debug("Job failed in evaluation_step_before_run.")
             return False, None
@@ -564,7 +436,7 @@ def evaluation_step_before_run(sandbox, command,
                                time_limit=0, memory_limit=0,
                                allow_dirs=None, writable_files=None,
                                stdin_redirect=None, stdout_redirect=None,
-                               wait=False, non_secure=False):
+                               wait=False):
     """First part of an evaluation step, until the running.
 
     return: exit code already translated if wait is True, the
@@ -605,7 +477,7 @@ def evaluation_step_before_run(sandbox, command,
 
     # Actually run the evaluation command.
     logger.debug("Starting execution step.")
-    return sandbox.execute_without_std(command, wait=wait, non_secure=non_secure)
+    return sandbox.execute_without_std(command, wait=wait)
 
 
 def evaluation_step_after_run(sandbox):

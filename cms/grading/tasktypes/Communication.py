@@ -178,31 +178,25 @@ class Communication(TaskType):
             num_processes = self.parameters[0]
         indices = range(num_processes)
         # Create sandboxes and FIFOs
-        sandbox_mgr = create_sandbox(file_cacher)
-        sandbox_user = create_sandbox(file_cacher)
-
-        if job.language == LANG_JAVA:
-            sandbox_mgr.max_processes = None
-            sandbox_user.max_processes = None
-
-        fifo_dir = tempfile.mkdtemp(dir=config.temp_dir)
-        fifo_in = os.path.join(fifo_dir, "in")
-        fifo_out = os.path.join(fifo_dir, "out")
-        os.mkfifo(fifo_in)
-        os.mkfifo(fifo_out)
-        os.chmod(fifo_dir, 0o755)
-        os.chmod(fifo_in, 0o666)
-        os.chmod(fifo_out, 0o666)
+        sandbox_mgr = create_sandbox(file_cacher, job.multithreaded_sandbox)
+        sandbox_user = [create_sandbox(file_cacher, job.multithreaded_sandbox)
+                        for i in indices]
+        fifo_dir = [tempfile.mkdtemp(dir=config.temp_dir) for i in indices]
+        fifo_in = [os.path.join(fifo_dir[i], "in%d" % i) for i in indices]
+        fifo_out = [os.path.join(fifo_dir[i], "out%d" % i) for i in indices]
+        for i in indices:
+            os.mkfifo(fifo_in[i])
+            os.mkfifo(fifo_out[i])
+            os.chmod(fifo_dir[i], 0o755)
+            os.chmod(fifo_in[i], 0o666)
+            os.chmod(fifo_out[i], 0o666)
 
         # First step: we start the manager.
         manager_filename = "manager"
-        manager_command = ["./%s" % manager_filename, fifo_in, fifo_out]
-
-        if job.language == LANG_JAVA:
-            command = ["/usr/bin/java", "-jar", executable_filename, fifo_out, fifo_in]
-        else:
-            command = ["./%s" % executable_filename, fifo_out, fifo_in]
-
+        manager_command = ["./%s" % manager_filename]
+        for i in indices:
+            manager_command.append(fifo_in[i])
+            manager_command.append(fifo_out[i])
         manager_executables_to_get = {
             manager_filename:
             job.managers[manager_filename].digest
@@ -210,8 +204,7 @@ class Communication(TaskType):
         manager_files_to_get = {
             "input.txt": job.input
             }
-        # /etc/alternatives is needed for default Oracle JDK setup on Ubuntu
-        manager_allow_dirs = [fifo_dir, "/etc/alternatives"]
+        manager_allow_dirs = fifo_dir
         for filename, digest in manager_executables_to_get.iteritems():
             sandbox_mgr.create_file_from_storage(
                 filename, digest, executable=True)

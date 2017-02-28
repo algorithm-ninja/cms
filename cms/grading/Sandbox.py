@@ -487,23 +487,6 @@ class StupidSandbox(SandboxBase):
         self.wallclock_timeout = None
         self.extra_timeout = None
 
-        # These parameters are not going to be used, but are here for
-        # API compatibility
-        self.box_id = 0
-        self.fsize = None
-        self.cgroup = False
-        self.dirs = []
-        self.preserve_env = False
-        self.inherit_env = []
-        self.set_env = {}
-        self.max_processes = None
-        self.verbosity = 0
-
-        # Set common environment variables.
-        # Specifically needed by Python, that searches the home for
-        # packages.
-        self.set_env["HOME"] = "./"
-
     # TODO - It returns wall clock time, because I have no way to
     # check CPU time (libev doesn't have wait4() support)
     def get_execution_time(self):
@@ -842,7 +825,6 @@ class IsolateSandbox(SandboxBase):
         self.stack_space = None        # -k
         self.address_space = None      # -m
         self.stdout_file = None        # -o
-        self.max_processes = None      # -p
         self.stderr_file = None        # -r
         self.timeout = None            # -t
         self.verbosity = 0             # -v
@@ -1206,7 +1188,7 @@ class IsolateSandbox(SandboxBase):
 
     def _popen(self, command,
                stdin=None, stdout=None, stderr=None,
-               close_fds=True, non_secure=False):
+               close_fds=True):
         """Execute the given command in the sandbox using
         subprocess.Popen, assigning the corresponding standard file
         descriptors.
@@ -1274,9 +1256,6 @@ class IsolateSandbox(SandboxBase):
 
         return p
 
-<<<<<<< HEAD
-    def execute_without_std(self, command, wait=False, non_secure=False):
-=======
     def _write_empty_run_log(self, index):
         """Write a fake run.log file with no information."""
         with open(os.path.join(self.path, "run.log.%s" % index), "w") as f:
@@ -1286,7 +1265,6 @@ class IsolateSandbox(SandboxBase):
             f.write("cg-mem:0\n")
 
     def execute_without_std(self, command, wait=False):
->>>>>>> 233713b99dfb5877514f08bddaf320d390971a47
         """Execute the given command in the sandbox using
         subprocess.Popen and discarding standard input, output and
         error. More specifically, the standard input gets closed just
@@ -1306,7 +1284,7 @@ class IsolateSandbox(SandboxBase):
         """
         popen = self._popen(command, stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                            close_fds=True, non_secure=non_secure)
+                            close_fds=True)
 
         # If the caller wants us to wait for completion, we also avoid
         # std*** to interfere with command. Otherwise we let the

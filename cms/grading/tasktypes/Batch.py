@@ -184,10 +184,6 @@ class Batch(TaskType):
             elif any(filename.endswith(obj) for obj in OBJECT_EXTS):
                 files_to_get[filename] = \
                     job.managers[filename].digest
-            elif any(filename.endswith(sobj)
-                     for sobj in LANGUAGE_TO_SHARED_OBJ_EXT_MAP.itervalues()):
-                files_to_get[filename] = \
-                    job.managers[filename].digest
 
         for filename, digest in files_to_get.iteritems():
             sandbox.create_file_from_storage(filename, digest)
@@ -248,13 +244,6 @@ class Batch(TaskType):
             input_filename: job.input
             }
 
-        # Also copy all managers that might be useful during evaluation.
-        for filename in job.managers.iterkeys():
-            if any(filename.endswith(sobj)
-                     for sobj in LANGUAGE_TO_SHARED_OBJ_EXT_MAP.itervalues()):
-                files_to_get[filename] = \
-                    job.managers[filename].digest
-
         # Put the required files into the sandbox
         for filename, digest in executables_to_get.iteritems():
             sandbox.create_file_from_storage(filename, digest, executable=True)
@@ -262,14 +251,12 @@ class Batch(TaskType):
             sandbox.create_file_from_storage(filename, digest)
 
         # Actually performs the execution
-        # /etc/alternatives is needed for default Oracle JDK setup on Ubuntu
         success, plus = evaluation_step(
             sandbox,
             commands,
             job.time_limit,
             job.memory_limit,
             writable_files=files_allowing_write,
-            allow_dirs=("/etc/alternatives", ),
             stdin_redirect=stdin_redirect,
             stdout_redirect=stdout_redirect)
 

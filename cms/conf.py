@@ -59,7 +59,6 @@ class Config(object):
         self.temp_dir = "/tmp"
         self.backdoor = False
         self.file_log_debug = False
-        self.python_version = "2"
         self.stream_log_detailed = False
 
         # Database.
