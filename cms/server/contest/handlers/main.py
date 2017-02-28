@@ -146,7 +146,7 @@ class LogoutHandler(BaseHandler):
     """Logout handler.
 
     """
-    def get(self):
+    def post(self):
         self.clear_cookie("login")
         self.redirect("/")
 
@@ -332,7 +332,7 @@ class PrintingHandler(BaseHandler):
                     participation.user.username)
 
         printjob = PrintJob(timestamp=self.timestamp,
-                            user=participation.user,
+                            participation=participation,
                             filename=filename,
                             digest=digest)
 

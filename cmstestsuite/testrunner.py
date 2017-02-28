@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 # Contest Management System - http://cms-dev.github.io/
-# Copyright © 2015 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2015-2017 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2016 Amir Keivan Mohtashami <akmohtashami97@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -30,13 +31,13 @@ import os
 import random
 import subprocess
 
-from cms import LANGUAGES
 from cmstestsuite import get_cms_config, CONFIG
 from cmstestsuite import add_contest, add_existing_user, add_existing_task, \
     add_user, add_task, add_testcase, add_manager, \
-    get_tasks, get_users, initialize_aws, start_service, start_server, \
-    start_ranking_web_server, shutdown_services, restart_service
+    get_tasks, get_users, initialize_aws
 from cmstestsuite.Test import TestFailure
+from cmstestsuite.Tests import ALL_LANGUAGES
+from cmstestsuite.programstarter import ProgramStarter
 from cmscommon.datetime import get_system_timezone
 
 
@@ -47,6 +48,8 @@ class TestRunner(object):
     def __init__(self, test_list, contest_id=None, workers=1):
         self.start_time = datetime.datetime.now()
 
+        self.ps = ProgramStarter()
+
         # Map from task name to (task id, task_module).
         self.task_id_map = {}
 
@@ -54,6 +57,7 @@ class TestRunner(object):
         self.rand = random.randint(0, 999999999)
 
         self.num_users = 0
+        self.workers = workers
 
         # Load config from cms.conf.
         TestRunner.load_cms_conf()
@@ -63,7 +67,7 @@ class TestRunner(object):
             os.chdir("%(TEST_DIR)s" % CONFIG)
             os.environ["PYTHONPATH"] = "%(TEST_DIR)s" % CONFIG
 
-        TestRunner.start_generic_services(workers)
+        self.start_generic_services()
         initialize_aws(self.rand)
 
         if contest_id is None:
@@ -76,8 +80,10 @@ class TestRunner(object):
         self.test_list = test_list
         self.n_tests = len(test_list)
         self.n_submissions = sum(len(test.languages) for test in test_list)
-        logging.info("Have %s submissions in %s tests...",
-                     self.n_submissions, self.n_tests)
+        self.n_user_tests = sum(len(test.languages) for test in test_list
+                                if test.user_tests)
+        logging.info("Have %s submissions and %s user_tests in %s tests...",
+                     self.n_submissions, self.n_user_tests, self.n_tests)
 
     @staticmethod
     def load_cms_conf():
@@ -104,35 +110,18 @@ class TestRunner(object):
 
     # Service management.
 
-    def startup(self):
-        self.start_es()
-        self.start_cws()
-        self.start_ps()
-
-    def start_es(self):
-        start_service("EvaluationService", contest=self.contest_id)
-
-    def start_cws(self):
-        start_server("ContestWebServer", contest=self.contest_id)
-
-    def start_ps(self):
+    def start_generic_services(self):
+        self.ps.start("LogService")
+        self.ps.start("ResourceService")
+        self.ps.start("Checker")
+        self.ps.start("ScoringService")
+        self.ps.start("AdminWebServer")
         # Just to verify it starts successfully.
-        start_service("ProxyService", contest=self.contest_id)
-
-    @staticmethod
-    def start_generic_services(workers=1):
-        start_service("LogService")
-        start_service("ResourceService")
-        start_service("Checker")
-        for shard in xrange(workers):
-            start_service("Worker", shard)
-        start_service("ScoringService")
-        start_server("AdminWebServer")
-        # Just to verify it starts successfully.
-        start_ranking_web_server()
+        self.ps.start("RankingWebServer", shard=None)
+        self.ps.wait()
 
     def shutdown(self):
-        shutdown_services()
+        self.ps.stop_all()
 
     # Data creation.
 
@@ -147,10 +136,12 @@ class TestRunner(object):
         self.contest_id = add_contest(
             name="testcontest" + str(self.rand),
             description="A test contest #%s." % self.rand,
-            languages=LANGUAGES,
+            languages=list(ALL_LANGUAGES),
+            allow_password_authentication="checked",
             start=start_time.strftime("%Y-%m-%d %H:%M:%S.%f"),
             stop=stop_time.strftime("%Y-%m-%d %H:%M:%S.%f"),
             timezone=get_system_timezone(),
+            allow_user_tests="checked",
             token_mode="finite",
             token_max_number="100",
             token_min_interval="0",
@@ -280,6 +271,13 @@ class TestRunner(object):
             for lang in test.languages:
                 yield (test, lang)
 
+    def _all_user_tests(self):
+        """Yield all pairs (test, language)."""
+        for test in self.test_list:
+            if test.user_tests:
+                for lang in test.languages:
+                    yield (test, lang)
+
     def submit_tests(self):
         """Create the tasks, and submit for all languages in all tests.
 
@@ -289,7 +287,12 @@ class TestRunner(object):
         # tasks and sending them to RWS.
         for test in self.test_list:
             self.create_or_get_task(test.task_module)
-        restart_service("ProxyService", contest=self.contest_id)
+        self.ps.start("EvaluationService", contest=self.contest_id)
+        self.ps.start("ContestWebServer", contest=self.contest_id)
+        self.ps.start("ProxyService", contest=self.contest_id)
+        for shard in xrange(self.workers):
+            self.ps.start("Worker", shard)
+        self.ps.wait()
 
         for i, (test, lang) in enumerate(self._all_submissions()):
             logging.info("Submitting submission %s/%s: %s (%s)",
@@ -297,6 +300,17 @@ class TestRunner(object):
             task_id = self.create_or_get_task(test.task_module)
             try:
                 test.submit(self.contest_id, task_id, self.user_id, lang)
+            except TestFailure as f:
+                logging.error("(FAILED (while submitting): %s)", f.message)
+                self.failures.append((test, lang, f.message))
+
+        for i, (test, lang) in enumerate(self._all_user_tests()):
+            logging.info("Submitting user test  %s/%s: %s (%s)",
+                         i + 1, self.n_user_tests, test.name, lang)
+            task_id = self.create_or_get_task(test.task_module)
+            try:
+                test.submit_user_test(
+                    self.contest_id, task_id, self.user_id, lang)
             except TestFailure as f:
                 logging.error("(FAILED (while submitting): %s)", f.message)
                 self.failures.append((test, lang, f.message))
@@ -314,6 +328,16 @@ class TestRunner(object):
                 test.wait(self.contest_id, lang)
             except TestFailure as f:
                 logging.error("(FAILED (while evaluating): %s)", f.message)
+                self.failures.append((test, lang, f.message))
+
+        for i, (test, lang) in enumerate(self._all_user_tests()):
+            logging.info("Waiting for user test %s/%s: %s (%s)",
+                         i + 1, self.n_user_tests, test.name, lang)
+            try:
+                test.wait_user_test(self.contest_id, lang)
+            except TestFailure as f:
+                logging.error("(FAILED (while evaluating user test): %s)",
+                              f.message)
                 self.failures.append((test, lang, f.message))
 
         return self.failures

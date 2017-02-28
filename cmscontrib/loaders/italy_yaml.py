@@ -3,11 +3,12 @@
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2014 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2012 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2010-2017 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
 # Copyright © 2013-2014 Luca Wehrstedt <luca.wehrstedt@gmail.com>
-# Copyright © 2014-2015 William Di Luigi <williamdiluigi@gmail.com>
+# Copyright © 2014-2016 William Di Luigi <williamdiluigi@gmail.com>
 # Copyright © 2015 Luca Chiodini <luca@chiodini.org>
+# Copyright © 2016 Andrea Cracco <guilucand@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -34,11 +35,11 @@ import sys
 import yaml
 from datetime import timedelta
 
-from cms import LANGUAGES, LANGUAGE_TO_HEADER_EXT_MAP, \
-    SCORE_MODE_MAX, SCORE_MODE_MAX_TOKENED_LAST
-from cmscommon.datetime import make_datetime
+from cms import SCORE_MODE_MAX, SCORE_MODE_MAX_TOKENED_LAST
 from cms.db import Contest, User, Task, Statement, Attachment, \
     Team, SubmissionFormatElement, Dataset, Manager, Testcase
+from cms.grading.languagemanager import LANGUAGES, HEADER_EXTS
+from cmscommon.datetime import make_datetime
 from cmscontrib import touch
 
 from .base_loader import ContestLoader, TaskLoader, UserLoader, TeamLoader
@@ -140,13 +141,9 @@ class YamlLoader(ContestLoader, TaskLoader, UserLoader, TeamLoader):
             logger.critical("File missing: \"contest.yaml\"")
             return None
 
-        name = os.path.split(self.path)[1]
-
         conf = yaml.safe_load(
             io.open(os.path.join(self.path, "contest.yaml"),
                     "rt", encoding="utf-8"))
-
-        logger.info("Loading parameters for contest %s.", name)
 
         # Here we update the time of the last import
         touch(os.path.join(self.path, ".itime_contest"))
@@ -158,8 +155,7 @@ class YamlLoader(ContestLoader, TaskLoader, UserLoader, TeamLoader):
         load(conf, args, ["name", "nome_breve"])
         load(conf, args, ["description", "nome"])
 
-        # Contest directory == Contest name
-        assert name == args["name"]
+        logger.info("Loading parameters for contest %s.", args["name"])
 
         # Use the new token settings format if detected.
         if "token_mode" in conf:
@@ -312,12 +308,21 @@ class YamlLoader(ContestLoader, TaskLoader, UserLoader, TeamLoader):
             conf = yaml.safe_load(
                 io.open(os.path.join(self.path, "task.yaml"),
                         "rt", encoding="utf-8"))
-        except IOError:
-            conf = yaml.safe_load(
-                io.open(os.path.join(self.path, "..", name + ".yaml"),
-                        "rt", encoding="utf-8"))
+        except IOError as err:
+            try:
+                deprecated_path = os.path.join(self.path, "..", name + ".yaml")
+                conf = yaml.safe_load(io.open(deprecated_path, "rt",
+                                              encoding="utf-8"))
 
-        logger.info("Loading parameters for task %s.", name)
+                logger.warning("You're using a deprecated location for the "
+                               "task.yaml file. You're advised to move %s to "
+                               "%s.", deprecated_path,
+                               os.path.join(self.path, "task.yaml"))
+            except IOError:
+                # Since both task.yaml and the (deprecated) "../taskname.yaml"
+                # are missing, we will only warn the user that task.yaml is
+                # missing (to avoid encouraging the use of the deprecated one)
+                raise err
 
         # Here we update the time of the last import
         touch(os.path.join(self.path, ".itime"))
@@ -329,11 +334,18 @@ class YamlLoader(ContestLoader, TaskLoader, UserLoader, TeamLoader):
         load(conf, args, ["name", "nome_breve"])
         load(conf, args, ["title", "nome"])
 
-        assert name == args["name"]
+        if name != args["name"]:
+            logger.info("The task name (%s) and the directory name (%s) are "
+                        "different. The former will be used.", args["name"],
+                        name)
 
         if args["name"] == args["title"]:
             logger.warning("Short name equals long name (title). "
                            "Please check.")
+
+        name = args["name"]
+
+        logger.info("Loading parameters for task %s.", name)
 
         if get_statement:
             primary_language = load(conf, None, "primary_language")
@@ -377,9 +389,8 @@ class YamlLoader(ContestLoader, TaskLoader, UserLoader, TeamLoader):
         # Otherwise fall back on the old one.
         else:
             logger.warning(
-                "%s.yaml uses a deprecated format for token settings which "
-                "will soon stop being supported, you're advised to update it.",
-                name)
+                "task.yaml uses a deprecated format for token settings which "
+                "will soon stop being supported, you're advised to update it.")
             # Determine the mode.
             if conf.get("token_initial", None) is None:
                 args["token_mode"] = "disabled"
@@ -441,29 +452,31 @@ class YamlLoader(ContestLoader, TaskLoader, UserLoader, TeamLoader):
         graders = False
         for lang in LANGUAGES:
             if os.path.exists(os.path.join(
-                    self.path, "sol", "grader.%s" % lang)):
+                    self.path, "sol", "grader%s" % lang.source_extension)):
                 graders = True
                 break
         if graders:
             # Read grader for each language
             for lang in LANGUAGES:
+                extension = lang.source_extension
                 grader_filename = os.path.join(
-                    self.path, "sol", "grader.%s" % lang)
+                    self.path, "sol", "grader%s" % extension)
                 if os.path.exists(grader_filename):
                     digest = self.file_cacher.put_file_from_path(
                         grader_filename,
-                        "Grader for task %s and language %s" % (name, lang))
+                        "Grader for task %s and language %s" %
+                        (task.name, lang))
                     args["managers"] += [
-                        Manager("grader.%s" % lang, digest)]
+                        Manager("grader%s" % extension, digest)]
                 else:
                     logger.warning("Grader for language %s not found ", lang)
             # Read managers with other known file extensions
             for other_filename in os.listdir(os.path.join(self.path, "sol")):
                 if any(other_filename.endswith(header)
-                       for header in LANGUAGE_TO_HEADER_EXT_MAP.itervalues()):
+                       for header in HEADER_EXTS):
                     digest = self.file_cacher.put_file_from_path(
                         os.path.join(self.path, "sol", other_filename),
-                        "Manager %s for task %s" % (other_filename, name))
+                        "Manager %s for task %s" % (other_filename, task.name))
                     args["managers"] += [
                         Manager(other_filename, digest)]
             compilation_param = "grader"
@@ -479,7 +492,7 @@ class YamlLoader(ContestLoader, TaskLoader, UserLoader, TeamLoader):
             if os.path.exists(path):
                 digest = self.file_cacher.put_file_from_path(
                     path,
-                    "Manager for task %s" % name)
+                    "Manager for task %s" % task.name)
                 args["managers"] += [
                     Manager("checker", digest)]
                 evaluation_param = "comparator"
@@ -583,33 +596,39 @@ class YamlLoader(ContestLoader, TaskLoader, UserLoader, TeamLoader):
                      os.path.join(self.path, "cor", "manager")]
             for path in paths:
                 if os.path.exists(path):
+                    num_processes = load(conf, None, "num_processes")
+                    if num_processes is None:
+                        num_processes = 1
+                    logger.info("Task type Communication")
                     args["task_type"] = "Communication"
-                    args["task_type_parameters"] = '[]'
+                    args["task_type_parameters"] = '[%d]' % num_processes
                     digest = self.file_cacher.put_file_from_path(
                         path,
-                        "Manager for task %s" % name)
+                        "Manager for task %s" % task.name)
                     args["managers"] += [
                         Manager("manager", digest)]
                     for lang in LANGUAGES:
                         stub_name = os.path.join(
-                            self.path, "sol", "stub.%s" % lang)
+                            self.path, "sol", "stub%s" % lang.source_extension)
                         if os.path.exists(stub_name):
                             digest = self.file_cacher.put_file_from_path(
                                 stub_name,
-                                "Stub for task %s and language %s" % (name,
-                                                                      lang))
+                                "Stub for task %s and language %s" % (
+                                    task.name, lang.name))
                             args["managers"] += [
-                                Manager("stub.%s" % lang, digest)]
+                                Manager(
+                                    "stub%s" % lang.source_extension, digest)]
                         else:
                             logger.warning("Stub for language %s not "
-                                           "found.", lang)
+                                           "found.", lang.name)
                     for other_filename in os.listdir(os.path.join(self.path,
                                                                   "sol")):
-                        if any(other_filename.endswith(header) for header in
-                               LANGUAGE_TO_HEADER_EXT_MAP.itervalues()):
+                        if any(other_filename.endswith(header)
+                               for header in HEADER_EXTS):
                             digest = self.file_cacher.put_file_from_path(
                                 os.path.join(self.path, "sol", other_filename),
-                                "Stub %s for task %s" % (other_filename, name))
+                                "Stub %s for task %s" % (other_filename,
+                                                         task.name))
                             args["managers"] += [
                                 Manager(other_filename, digest)]
                     break
@@ -626,10 +645,10 @@ class YamlLoader(ContestLoader, TaskLoader, UserLoader, TeamLoader):
         for i in xrange(n_input):
             input_digest = self.file_cacher.put_file_from_path(
                 os.path.join(self.path, "input", "input%d.txt" % i),
-                "Input %d for task %s" % (i, name))
+                "Input %d for task %s" % (i, task.name))
             output_digest = self.file_cacher.put_file_from_path(
                 os.path.join(self.path, "output", "output%d.txt" % i),
-                "Output %d for task %s" % (i, name))
+                "Output %d for task %s" % (i, task.name))
             args["testcases"] += [
                 Testcase("%03d" % i, False, input_digest, output_digest)]
             if args["task_type"] == "OutputOnly":
@@ -637,7 +656,10 @@ class YamlLoader(ContestLoader, TaskLoader, UserLoader, TeamLoader):
                     Attachment("input_%03d.txt" % i, input_digest)]
         public_testcases = load(conf, None, ["public_testcases", "risultati"],
                                 conv=lambda x: "" if x is None else x)
-        if public_testcases != "":
+        if public_testcases == "all":
+            for t in args["testcases"]:
+                t.public = True
+        elif public_testcases != "":
             for x in public_testcases.split(","):
                 args["testcases"][int(x.strip())].public = True
 
@@ -751,11 +773,11 @@ class YamlLoader(ContestLoader, TaskLoader, UserLoader, TeamLoader):
         if not conf.get('output_only', False) and \
                 os.path.isdir(os.path.join(self.path, "sol")):
             for lang in LANGUAGES:
-                files.append(
-                    os.path.join(self.path, "sol", "grader.%s" % lang))
+                files.append(os.path.join(
+                    self.path, "sol", "grader%s" % lang.source_extension))
             for other_filename in os.listdir(os.path.join(self.path, "sol")):
                 if any(other_filename.endswith(header)
-                       for header in LANGUAGE_TO_HEADER_EXT_MAP.itervalues()):
+                       for header in HEADER_EXTS):
                     files.append(
                         os.path.join(self.path, "sol", other_filename))
 

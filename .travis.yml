@@ -1,5 +1,51 @@
 dist: trusty
-sudo: true
-env:
-  - TEST_SUITE=functionaltests
-script: ./.travis.sh
+sudo: required
+
+# FIXME: The following travis setting would automatically use a virtualenv,
+#        and CMS would think it is not installed, see this github issue:
+#        https://github.com/cms-dev/cms/issues/559
+#        (while it stays commented out, travis will think we're using ruby)
+#        when the issue is fixed, we will be able to take advantage of
+#        multi-version testing (testing against many python versions)
+#language: python
+#python:
+#  - 2.7
+
+install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y build-essential fpc php5-cli haskell-platform
+  - sudo apt-get install -y postgresql-client gettext python2.7 iso-codes shared-mime-info stl-manual cgroup-lite
+  - sudo apt-get install -y python-dev libpq-dev libcups2-dev libyaml-dev
+
+  - cp ./config/cms.conf.sample ./config/cms.conf
+  - sudo ./prerequisites.py install -y
+
+  - sudo pip install -r requirements.txt
+  - sudo pip install -r dev-requirements.txt
+  - sudo python setup.py install
+
+  - psql --username=postgres --command="CREATE USER cmsuser WITH PASSWORD 'your_password_here';"
+
+  - createdb --username=postgres --owner=cmsuser cmsdb
+  - psql --username=postgres --dbname=cmsdb --command='ALTER SCHEMA public OWNER TO cmsuser'
+  - psql --username=postgres --dbname=cmsdb --command='GRANT SELECT ON pg_largeobject TO cmsuser'
+
+  - createdb --username=postgres --owner=cmsuser cmsdbfortesting
+  - psql --username=postgres --dbname=cmsdbfortesting --command='ALTER SCHEMA public OWNER TO cmsuser'
+  - psql --username=postgres --dbname=cmsdbfortesting --command='GRANT SELECT ON pg_largeobject TO cmsuser'
+
+  - sudo chown root:$USER /usr/local/bin/isolate /usr/local/etc/cms.conf
+  - sudo chmod 750 /usr/local/bin/isolate
+  - sudo chmod 640 /usr/local/etc/cms.conf
+  - sudo chmod u+s /usr/local/bin/isolate /usr/local/etc/cms.conf
+
+  - ls -al /usr/local/bin/isolate /usr/local/etc/cms.conf
+  - groups
+
+  - sudo cmsInitDB
+
+script:
+  - sudo cmsRunTests -v
+
+notifications:
+  email: no

@@ -3,9 +3,10 @@
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2012 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2014 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2010-2017 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
 # Copyright © 2012-2013 Luca Wehrstedt <luca.wehrstedt@gmail.com>
+# Copyright © 2016 Petar Veličković <pv273@cam.ac.uk>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -28,12 +29,14 @@ import logging
 import os
 import tempfile
 
-from cms import LANGUAGES, LANGUAGE_TO_SOURCE_EXT_MAP, \
-    LANGUAGE_TO_HEADER_EXT_MAP, config
+from cms import config
 from cms.grading.Sandbox import wait_without_std
-from cms.grading import get_compilation_commands, compilation_step, \
-    evaluation_step_before_run, evaluation_step_after_run, \
-    is_evaluation_passed, human_evaluation_message, white_diff_step
+from cms.grading.ParameterTypes import ParameterTypeChoice
+from cms.grading import compilation_step, \
+    evaluation_step, evaluation_step_before_run, evaluation_step_after_run, \
+    is_evaluation_passed, human_evaluation_message, \
+    extract_outcome_and_text, white_diff_step
+from cms.grading.languagemanager import LANGUAGES, get_language
 from cms.grading.TaskType import TaskType, \
     create_sandbox, delete_sandbox
 from cms.db import Executable
@@ -61,38 +64,59 @@ class TwoSteps(TaskType):
     Admins must provide also header files, named "foo{.h|lib.pas}" for
     the three sources (manager and user provided).
 
+    Parameters are given by a singleton list of strings (for possible
+    expansions in the future), which may be 'diff' or 'comparator',
+    specifying whether the evaluation is done using white diff or a
+    comparator.
+
     """
     ALLOW_PARTIAL_SUBMISSION = False
 
-    name = "Two steps"
+    _EVALUATION = ParameterTypeChoice(
+        "Output evaluation",
+        "output_eval",
+        "",
+        {"diff": "Outputs compared with white diff",
+         "comparator": "Outputs are compared by a comparator"})
+
+    ACCEPTED_PARAMETERS = [_EVALUATION]
+
+    CHECKER_FILENAME = "checker"
+
+    @property
+    def name(self):
+        """See TaskType.name."""
+        # TODO add some details if a comparator is used, etc...
+        return "Two steps"
 
     def get_compilation_commands(self, submission_format):
         """See TaskType.get_compilation_commands."""
         res = dict()
         for language in LANGUAGES:
-            source_ext = LANGUAGE_TO_SOURCE_EXT_MAP[language]
-            header_ext = LANGUAGE_TO_HEADER_EXT_MAP[language]
+            source_ext = language.source_extension
+            header_ext = language.header_extension
             source_filenames = []
-            for filename in submission_format:
-                source_filename = filename.replace(".%l", source_ext)
-                source_filenames.append(source_filename)
-                # Headers.
-                header_filename = filename.replace(".%l", header_ext)
-                source_filenames.append(header_filename)
-
-            # Manager.
+            # Manager
             manager_source_filename = "manager%s" % source_ext
             source_filenames.append(manager_source_filename)
             # Manager's header.
-            manager_header_filename = "manager%s" % header_ext
-            source_filenames.append(manager_header_filename)
+            if header_ext is not None:
+                manager_header_filename = "manager%s" % header_ext
+                source_filenames.append(manager_header_filename)
+
+            for filename in submission_format:
+                source_filename = filename.replace(".%l", source_ext)
+                source_filenames.append(source_filename)
+                # Headers
+                if header_ext is not None:
+                    header_filename = filename.replace(".%l", header_ext)
+                    source_filenames.append(header_filename)
 
             # Get compilation command and compile.
             executable_filename = "manager"
-            commands = get_compilation_commands(language,
-                                                source_filenames,
-                                                executable_filename)
-            res[language] = commands
+            commands = language.get_compilation_commands(
+                source_filenames, executable_filename)
+            res[language.name] = commands
         return res
 
     def compile(self, job, file_cacher):
@@ -100,9 +124,9 @@ class TwoSteps(TaskType):
         # Detect the submission's language. The checks about the
         # formal correctedness of the submission are done in CWS,
         # before accepting it.
-        language = job.language
-        source_ext = LANGUAGE_TO_SOURCE_EXT_MAP[language]
-        header_ext = LANGUAGE_TO_HEADER_EXT_MAP[language]
+        language = get_language(job.language)
+        source_ext = language.source_extension
+        header_ext = language.header_extension
 
         # TODO: here we are sure that submission.files are the same as
         # task.submission_format. The following check shouldn't be
@@ -117,21 +141,11 @@ class TwoSteps(TaskType):
             return True
 
         # First and only one compilation.
-        sandbox = create_sandbox(file_cacher)
+        sandbox = create_sandbox(file_cacher, job.multithreaded_sandbox)
         job.sandboxes.append(sandbox.path)
         files_to_get = {}
 
-        # User's submissions and headers.
         source_filenames = []
-        for filename, file_ in job.files.iteritems():
-            source_filename = filename.replace(".%l", source_ext)
-            source_filenames.append(source_filename)
-            files_to_get[source_filename] = file_.digest
-            # Headers.
-            header_filename = filename.replace(".%l", header_ext)
-            source_filenames.append(header_filename)
-            files_to_get[header_filename] = \
-                job.managers[header_filename].digest
 
         # Manager.
         manager_filename = "manager%s" % source_ext
@@ -139,19 +153,31 @@ class TwoSteps(TaskType):
         files_to_get[manager_filename] = \
             job.managers[manager_filename].digest
         # Manager's header.
-        manager_filename = "manager%s" % header_ext
-        source_filenames.append(manager_filename)
-        files_to_get[manager_filename] = \
-            job.managers[manager_filename].digest
+        if header_ext is not None:
+            manager_filename = "manager%s" % header_ext
+            source_filenames.append(manager_filename)
+            files_to_get[manager_filename] = \
+                job.managers[manager_filename].digest
+
+        # User's submissions and headers.
+        for filename, file_ in job.files.iteritems():
+            source_filename = filename.replace(".%l", source_ext)
+            source_filenames.append(source_filename)
+            files_to_get[source_filename] = file_.digest
+            # Headers (fixing compile error again here).
+            if header_ext is not None:
+                header_filename = filename.replace(".%l", header_ext)
+                source_filenames.append(header_filename)
+                files_to_get[header_filename] = \
+                    job.managers[header_filename].digest
 
         for filename, digest in files_to_get.iteritems():
             sandbox.create_file_from_storage(filename, digest)
 
         # Get compilation command and compile.
         executable_filename = "manager"
-        commands = get_compilation_commands(language,
-                                            source_filenames,
-                                            executable_filename)
+        commands = language.get_compilation_commands(
+            source_filenames, executable_filename)
         operation_success, compilation_success, text, plus = \
             compilation_step(sandbox, commands)
 
@@ -169,13 +195,13 @@ class TwoSteps(TaskType):
                 Executable(executable_filename, digest)
 
         # Cleanup
-        delete_sandbox(sandbox)
+        delete_sandbox(sandbox, job.success)
 
     def evaluate(self, job, file_cacher):
         """See TaskType.evaluate."""
         # f stand for first, s for second.
-        first_sandbox = create_sandbox(file_cacher)
-        second_sandbox = create_sandbox(file_cacher)
+        first_sandbox = create_sandbox(file_cacher, job.multithreaded_sandbox)
+        second_sandbox = create_sandbox(file_cacher, job.multithreaded_sandbox)
         fifo_dir = tempfile.mkdtemp(dir=config.temp_dir)
         fifo = os.path.join(fifo_dir, "fifo")
         os.mkfifo(fifo)
@@ -294,13 +320,58 @@ class TwoSteps(TaskType):
                         "res.txt",
                         job.output)
 
-                    outcome, text = white_diff_step(
-                        second_sandbox, "output.txt", "res.txt")
+                    # If a checker is not provided, use white-diff
+                    if self.parameters[0] == "diff":
+                        outcome, text = white_diff_step(
+                            second_sandbox, "output.txt", "res.txt")
+
+                    elif self.parameters[0] == "comparator":
+                        if TwoSteps.CHECKER_FILENAME not in job.managers:
+                            logger.error("Configuration error: missing or "
+                                         "invalid comparator (it must be "
+                                         "named `checker')",
+                                         extra={"operation": job.info})
+                            success = False
+                        else:
+                            second_sandbox.create_file_from_storage(
+                                TwoSteps.CHECKER_FILENAME,
+                                job.managers[TwoSteps.CHECKER_FILENAME].digest,
+                                executable=True)
+                            # Rewrite input file, as in Batch.py
+                            try:
+                                second_sandbox.remove_file("input.txt")
+                            except OSError as e:
+                                assert not second_sandbox.file_exists(
+                                    "input.txt")
+                            second_sandbox.create_file_from_storage(
+                                "input.txt",
+                                job.input)
+                            success, _ = evaluation_step(
+                                second_sandbox,
+                                [["./%s" % TwoSteps.CHECKER_FILENAME,
+                                  "input.txt", "res.txt", "output.txt"]])
+                            if success:
+                                try:
+                                    outcome, text = extract_outcome_and_text(
+                                        second_sandbox)
+                                except ValueError, e:
+                                    logger.error("Invalid output from "
+                                                 "comparator: %s", e.message,
+                                                 extra={"operation": job.info})
+                                    success = False
+                    else:
+                        raise ValueError("Uncrecognized first parameter"
+                                         " `%s' for TwoSteps tasktype." %
+                                         self.parameters[0])
 
         # Whatever happened, we conclude.
         job.success = success
-        job.outcome = str(outcome)
+        job.outcome = str(outcome) if outcome is not None else None
         job.text = text
 
-        delete_sandbox(first_sandbox)
-        delete_sandbox(second_sandbox)
+        delete_sandbox(first_sandbox, job.success)
+        delete_sandbox(second_sandbox, job.success)
+
+    def get_user_managers(self, unused_submission_format):
+        """See TaskType.get_user_managers."""
+        return ["manager.%l"]

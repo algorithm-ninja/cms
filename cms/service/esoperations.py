@@ -38,7 +38,6 @@ from sqlalchemy import case, literal
 from cms.io import PriorityQueue, QueueItem
 from cms.db import Dataset, Evaluation, Submission, SubmissionResult, \
     Task, Testcase, UserTest, UserTestResult
-from cms.grading.Job import CompilationJob, EvaluationJob
 
 
 logger = logging.getLogger(__name__)
@@ -289,17 +288,23 @@ def get_relevant_operations(level, submissions, dataset_id=None):
     return operations
 
 
-def get_submissions_operations(session, contest_id):
+def get_submissions_operations(session, contest_id=None):
     """Return all the operations to do for submissions in the contest.
 
     session (Session): the database session to use.
-    contest_id (int): the contest for which we want the operations.
+    contest_id (int|None): the contest for which we want the operations.
+        If none, get operations for any contest.
 
     return ([ESOperation, float, int]): a list of operation, timestamp
         and priority.
 
     """
     operations = []
+
+    if contest_id is None:
+        contest_filter = literal(True)
+    else:
+        contest_filter = Task.contest_id == contest_id
 
     # Retrieve the compilation operations for all submissions without
     # the corresponding result for a dataset to judge. Since we have
@@ -313,7 +318,7 @@ def get_submissions_operations(session, contest_id):
                    (Dataset.id == SubmissionResult.dataset_id) &
                    (Submission.id == SubmissionResult.submission_id))\
         .filter(
-            (Task.contest_id == contest_id) &
+            contest_filter &
             (FILTER_SUBMISSION_DATASETS_TO_JUDGE) &
             (SubmissionResult.dataset_id.is_(None)))\
         .with_entities(Submission.id, Dataset.id,
@@ -331,7 +336,7 @@ def get_submissions_operations(session, contest_id):
         .join(Submission.results)\
         .join(SubmissionResult.dataset)\
         .filter(
-            (Task.contest_id == contest_id) &
+            contest_filter &
             (FILTER_SUBMISSION_DATASETS_TO_JUDGE) &
             (FILTER_SUBMISSION_RESULTS_TO_COMPILE))\
         .with_entities(Submission.id, Dataset.id,
@@ -365,7 +370,7 @@ def get_submissions_operations(session, contest_id):
                    (Evaluation.dataset_id == Dataset.id) &
                    (Evaluation.testcase_id == Testcase.id))\
         .filter(
-            (Task.contest_id == contest_id) &
+            contest_filter &
             (FILTER_SUBMISSION_DATASETS_TO_JUDGE) &
             (FILTER_SUBMISSION_RESULTS_TO_EVALUATE) &
             (Evaluation.id.is_(None)))\
@@ -390,17 +395,23 @@ def get_submissions_operations(session, contest_id):
     return operations
 
 
-def get_user_tests_operations(session, contest_id):
+def get_user_tests_operations(session, contest_id=None):
     """Return all the operations to do for user tests in the contest.
 
     session (Session): the database session to use.
-    contest_id (int): the contest for which we want the operations.
+    contest_id (int|None): the contest for which we want the operations.
+        If none, get operations for any contest.
 
     return ([ESOperation, float, int]): a list of operation, timestamp
         and priority.
 
     """
     operations = []
+
+    if contest_id is None:
+        contest_filter = literal(True)
+    else:
+        contest_filter = Task.contest_id == contest_id
 
     # Retrieve the compilation operations for all user tests without
     # the corresponding result for a dataset to judge. Since we have
@@ -414,7 +425,7 @@ def get_user_tests_operations(session, contest_id):
                    (Dataset.id == UserTestResult.dataset_id) &
                    (UserTest.id == UserTestResult.user_test_id))\
         .filter(
-            (Task.contest_id == contest_id) &
+            contest_filter &
             (FILTER_USER_TEST_DATASETS_TO_JUDGE) &
             (UserTestResult.dataset_id.is_(None)))\
         .with_entities(UserTest.id, Dataset.id,
@@ -432,7 +443,7 @@ def get_user_tests_operations(session, contest_id):
         .join(UserTest.results)\
         .join(UserTestResult.dataset)\
         .filter(
-            (Task.contest_id == contest_id) &
+            contest_filter &
             (FILTER_USER_TEST_DATASETS_TO_JUDGE) &
             (FILTER_USER_TEST_RESULTS_TO_COMPILE))\
         .with_entities(UserTest.id, Dataset.id,
@@ -460,7 +471,7 @@ def get_user_tests_operations(session, contest_id):
         .join(UserTest.results)\
         .join(UserTestResult.dataset)\
         .filter(
-            (Task.contest_id == contest_id) &
+            contest_filter &
             (FILTER_USER_TEST_DATASETS_TO_JUDGE) &
             (FILTER_USER_TEST_RESULTS_TO_EVALUATE))\
         .with_entities(UserTest.id, Dataset.id,
@@ -497,6 +508,13 @@ class ESOperation(QueueItem):
         self.dataset_id = dataset_id
         self.testcase_codename = testcase_codename
 
+    @staticmethod
+    def from_dict(d):
+        return ESOperation(d["type"],
+                           d["object_id"],
+                           d["dataset_id"],
+                           d["testcase_codename"])
+
     def __eq__(self, other):
         # We may receive a non-ESOperation other when comparing with
         # operations in the worker pool (as these may also be unicode or
@@ -528,38 +546,19 @@ class ESOperation(QueueItem):
             self.dataset_id,
             self.testcase_codename)
 
-    def to_dict(self):
-        return {"type": self.type_,
-                "object_id": self.object_id,
-                "dataset_id": self.dataset_id,
-                "testcase_codename": self.testcase_codename}
+    def for_submission(self):
+        """Return if the operation is for a submission or for a user test.
 
-    def build_job(self, session):
-        """Produce the Job for this operation.
-
-        Return the Job object that has to be sent to Workers to have
-        them perform the operation this object describes.
-
-        session (Session): the database session to use to fetch objects
-            if necessary.
-
-        return (Job): the job encoding of the operation, as understood
-            by Workers and TaskTypes.
+        return (bool): True if this operation is for a submission.
 
         """
-        result = None
-        dataset = Dataset.get_from_id(self.dataset_id, session)
-        if self.type_ == ESOperation.COMPILATION:
-            submission = Submission.get_from_id(self.object_id, session)
-            result = CompilationJob.from_submission(submission, dataset)
-        elif self.type_ == ESOperation.EVALUATION:
-            submission = Submission.get_from_id(self.object_id, session)
-            result = EvaluationJob.from_submission(
-                submission, dataset, self.testcase_codename)
-        elif self.type_ == ESOperation.USER_TEST_COMPILATION:
-            user_test = UserTest.get_from_id(self.object_id, session)
-            result = CompilationJob.from_user_test(user_test, dataset)
-        elif self.type_ == ESOperation.USER_TEST_EVALUATION:
-            user_test = UserTest.get_from_id(self.object_id, session)
-            result = EvaluationJob.from_user_test(user_test, dataset)
-        return result
+        return self.type_ == ESOperation.COMPILATION or \
+            self.type_ == ESOperation.EVALUATION
+
+    def to_dict(self):
+        return {
+            "type": self.type_,
+            "object_id": self.object_id,
+            "dataset_id": self.dataset_id,
+            "testcase_codename": self.testcase_codename
+        }

@@ -3,11 +3,12 @@
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2013 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2014 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2010-2016 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
 # Copyright © 2013 Luca Wehrstedt <luca.wehrstedt@gmail.com>
 # Copyright © 2014 Artem Iglikov <artem.iglikov@gmail.com>
 # Copyright © 2015 William Di Luigi <williamdiluigi@gmail.com>
+# Copyright © 2016 Myungwoo Chun <mc.tamaki@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -219,7 +220,8 @@ Options:
 
         print("===== Compiling localization files")
         for locale in glob(os.path.join("cms", "locale", "*")):
-            if os.path.isdir(locale):
+            if os.path.isdir(locale) \
+                    and not os.path.basename(locale).startswith("_"):
                 country_code = os.path.basename(locale)
                 print("  %s" % country_code)
                 path = os.path.join(
@@ -277,7 +279,11 @@ Options:
 
     def install_conf(self):
         """Install configuration files"""
+        assert_root()
+
         print("===== Copying configuration to /usr/local/etc/")
+        root = pwd.getpwnam("root")
+        cmsuser = pwd.getpwnam("cmsuser")
         makedir(os.path.join(USR_ROOT, "etc"), root, 0755)
         for conf_file_name in ["cms.conf", "cms.ranking.conf"]:
             conf_file = os.path.join(USR_ROOT, "etc", conf_file_name)

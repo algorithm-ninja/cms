@@ -3,13 +3,15 @@
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2014 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2015 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2010-2016 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
 # Copyright © 2012-2015 Luca Wehrstedt <luca.wehrstedt@gmail.com>
 # Copyright © 2013 Bernard Blackham <bernard@largestprime.net>
 # Copyright © 2014 Artem Iglikov <artem.iglikov@gmail.com>
 # Copyright © 2014 Fabian Gundlach <320pointsguy@gmail.com>
 # Copyright © 2015 William Di Luigi <williamdiluigi@gmail.com>
+# Copyright © 2016 Myungwoo Chun <mc.tamaki@gmail.com>
+# Copyright © 2016 Amir Keivan Mohtashami <akmohtashami97@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -42,6 +44,7 @@ from datetime import timedelta
 
 import tornado.web
 
+from sqlalchemy.orm import contains_eager
 from werkzeug.datastructures import LanguageAccept
 from werkzeug.http import parse_accept_header
 
@@ -63,22 +66,29 @@ NOTIFICATION_WARNING = "warning"
 NOTIFICATION_SUCCESS = "success"
 
 
-def check_ip(client, wanted):
-    """Return if client IP belongs to the wanted subnet.
+def check_ip(ip, whitelist):
+    """Return if client IP belongs to one of the accepted subnets.
 
-    client (string): IP address to verify.
-    wanted (string): IP address or subnet to check against.
+    ip (string): IP address to verify.
+    whitelist (string): IP addresses or subnets to check against (separated
+        by a comma).
 
-    return (bool): whether client equals wanted (if the latter is an IP
-        address) or client belongs to wanted (if it's a subnet).
+    return (bool): whether client is equal to one of the IPs in the whitelist
+        or client belongs to one of the subnets in the whitelist.
 
     """
-    wanted, sep, subnet = wanted.partition('/')
-    subnet = 32 if sep == "" else int(subnet)
-    snmask = 2 ** 32 - 2 ** (32 - subnet)
-    wanted = struct.unpack(">I", socket.inet_aton(wanted))[0]
-    client = struct.unpack(">I", socket.inet_aton(client))[0]
-    return (wanted & snmask) == (client & snmask)
+    for wanted in whitelist.split(","):
+        wanted, sep, subnet = wanted.partition('/')
+
+        subnet = 32 if sep == "" else int(subnet)
+        snmask = 2 ** 32 - 2 ** (32 - subnet)
+        wanted = struct.unpack(">I", socket.inet_aton(wanted))[0]
+        client = struct.unpack(">I", socket.inet_aton(ip))[0]
+
+        if (wanted & snmask) == (client & snmask):
+            return True
+
+    return False
 
 
 class BaseHandler(CommonRequestHandler):
@@ -109,37 +119,106 @@ class BaseHandler(CommonRequestHandler):
         self.r_params = self.render_params()
 
     def get_current_user(self):
-        """The name is get_current_user because tornado wants it that
-        way, but this is really a get_current_participation.
+        """Return the currently logged in participation.
 
-        Gets the current participation from cookies.
+        The name is get_current_user because tornado requires that
+        name.
 
-        If a valid cookie is retrieved, return a Participation tuple
-        (specifically: the Participation involving the username
-        specified in the cookie and the current contest).
+        The participation is obtained from one of the possible sources:
+        - if IP autologin is enabled, the remote IP address is matched
+          with the participation IP address; if a match is found, that
+          participation is returned; in case of errors, None is returned;
+        - if username/password authentication is enabled, and the cookie
+          is valid, the corresponding participation is returned, and the
+          cookie is refreshed.
 
-        Otherwise (e.g. the user exists but doesn't participate in the
-        current contest), return None.
+        After finding the participation, IP login and hidden users
+        restrictions are checked.
+
+        In case of any error, or of a login by other sources, the
+        cookie is deleted.
+
+        return (Participation|None): the participation object for the
+            user logged in for the running contest.
+
+        """
+        participation = None
+
+        if self.contest.ip_autologin:
+            try:
+                participation = self._get_current_user_from_ip()
+                # If the login is IP-based, we delete previous cookies.
+                if participation is not None:
+                    self.clear_cookie("login")
+            except RuntimeError:
+                return None
+
+        if participation is None \
+                and self.contest.allow_password_authentication:
+            participation = self._get_current_user_from_cookie()
+
+        if participation is None:
+            self.clear_cookie("login")
+            return None
+
+        # Check if user is using the right IP (or is on the right subnet),
+        # and that is not hidden if hidden users are blocked.
+        ip_login_restricted = \
+            self.contest.ip_restriction and participation.ip is not None \
+            and not check_ip(self.request.remote_ip, participation.ip)
+        hidden_user_restricted = \
+            participation.hidden and self.contest.block_hidden_participations
+        if ip_login_restricted or hidden_user_restricted:
+            self.clear_cookie("login")
+            participation = None
+
+        return participation
+
+    def _get_current_user_from_ip(self):
+        """Return the current participation based on the IP address.
+
+        return (Participation|None): the only participation matching
+            the remote IP address, or None if no participations could
+            be matched.
+
+        raise (RuntimeError): if there is more than one participation
+            matching the remote IP address.
 
         """
         remote_ip = self.request.remote_ip
-        if self.contest.ip_autologin:
-            self.clear_cookie("login")
-            participations = self.sql_session.query(Participation)\
-                .filter(Participation.contest == self.contest)\
-                .filter(Participation.ip == remote_ip)\
-                .all()
-            if len(participations) == 1:
-                return participations[0]
+        participations = self.sql_session.query(Participation)\
+            .filter(Participation.contest == self.contest)\
+            .filter(Participation.ip == remote_ip)
 
-            if len(participations) > 1:
-                logger.error("Multiple users have IP %s." % (remote_ip))
-            else:
-                logger.error("No user has IP %s" % (remote_ip))
+        # If hidden users are blocked we ignore them completely.
+        if self.contest.block_hidden_participations:
+            participations = participations\
+                .filter(Participation.hidden.is_(False))
 
-            # If IP autologin is set, we do not allow password logins.
-            return None
+        participations = participations.all()
 
+        if len(participations) == 1:
+            return participations[0]
+
+        # Having more than participation with the same IP,
+        # is a mistake and should not happen. In such case,
+        # we disallow login for that IP completely, in order to
+        # make sure the problem is noticed.
+        if len(participations) > 1:
+            logger.error("%d participants have IP %s while"
+                         "auto-login feature is enabled." % (
+                             len(participations), remote_ip))
+            raise RuntimeError("More than one participants with the same IP.")
+
+    def _get_current_user_from_cookie(self):
+        """Return the current participation based on the cookie.
+
+        If a participation can be extracted, the cookie is refreshed.
+
+        return (Participation|None): the participation extracted from
+            the cookie, or None if not possible.
+
+        """
         if self.get_secure_cookie("login") is None:
             return None
 
@@ -150,62 +229,35 @@ class BaseHandler(CommonRequestHandler):
             password = cookie[1]
             last_update = make_datetime(cookie[2])
         except:
-            self.clear_cookie("login")
             return None
 
         # Check if the cookie is expired.
         if self.timestamp - last_update > \
                 timedelta(seconds=config.cookie_duration):
-            self.clear_cookie("login")
             return None
 
-        # Load user from DB.
-        user = self.sql_session.query(User)\
+        # Load participation from DB and make sure it exists.
+        participation = self.sql_session.query(Participation)\
+            .join(Participation.user)\
+            .options(contains_eager(Participation.user))\
+            .filter(Participation.contest == self.contest)\
             .filter(User.username == username)\
             .first()
-
-        # Check if user exists.
-        if user is None:
-            self.clear_cookie("login")
-            return None
-
-        # Load participation from DB.
-        participation = self.sql_session.query(Participation)\
-            .filter(Participation.contest == self.contest)\
-            .filter(Participation.user == user)\
-            .first()
-
-        # Check if participaton exists.
         if participation is None:
-            self.clear_cookie("login")
             return None
 
-        # If a contest-specific password is defined, use that. If it's
-        # not, use the user's main password.
+        # Check that the password is correct (if a contest-specific
+        # password is defined, use that instead of the user password).
         if participation.password is None:
-            correct_password = user.password
+            correct_password = participation.user.password
         else:
             correct_password = participation.password
-
-        # Check if user is allowed to login.
         if password != correct_password:
-            self.clear_cookie("login")
-            return None
-
-        # Check if user is using the right IP (or is on the right subnet)
-        if self.contest.ip_restriction and participation.ip is not None \
-                and not check_ip(self.request.remote_ip, participation.ip):
-            self.clear_cookie("login")
-            return None
-
-        # Check if user is hidden
-        if participation.hidden and self.contest.block_hidden_participations:
-            self.clear_cookie("login")
             return None
 
         if self.refresh_cookie:
             self.set_secure_cookie("login",
-                                   pickle.dumps((user.username,
+                                   pickle.dumps((username,
                                                  password,
                                                  make_timestamp())),
                                    expires_days=None)
@@ -220,13 +272,13 @@ class BaseHandler(CommonRequestHandler):
             lang_codes = filter_language_codes(
                 lang_codes, self.contest.allowed_localizations)
 
-        # TODO We fallback on "en" if no language matches: we could
-        # return 406 Not Acceptable instead.
         # Select the one the user likes most.
+        basic_lang = lang_codes[0].replace("_", "-") \
+            if len(self.contest.allowed_localizations) else 'en'
         http_langs = [lang_code.replace("_", "-") for lang_code in lang_codes]
         self.browser_lang = parse_accept_header(
             self.request.headers.get("Accept-Language", ""),
-            LanguageAccept).best_match(http_langs, "en")
+            LanguageAccept).best_match(http_langs, basic_lang)
 
         self.cookie_lang = self.get_cookie("language", None)
 
@@ -270,6 +322,8 @@ class BaseHandler(CommonRequestHandler):
         ret["phase"] = self.contest.phase(self.timestamp)
 
         ret["printing_enabled"] = (config.printer is not None)
+        ret["questions_enabled"] = self.contest.allow_questions
+        ret["testing_enabled"] = self.contest.allow_user_tests
 
         if self.current_user is not None:
             participation = self.current_user
@@ -303,8 +357,17 @@ class BaseHandler(CommonRequestHandler):
         # TODO Now all language names are shown in the active language.
         # It would be better to show them in the corresponding one.
         ret["lang_names"] = {}
+
+        # Get language codes for allowed localizations
+        lang_codes = self.langs.keys()
+        if len(self.contest.allowed_localizations) > 0:
+            lang_codes = filter_language_codes(
+                lang_codes, self.contest.allowed_localizations)
         for lang_code, trans in self.langs.iteritems():
             language_name = None
+            # Filter lang_codes with allowed localizations
+            if lang_code not in lang_codes:
+                continue
             try:
                 language_name = translate_language_country_code(
                     lang_code, trans)
@@ -353,7 +416,7 @@ class BaseHandler(CommonRequestHandler):
         # the data we need to display a basic template with the error
         # information. If r_params is not defined (i.e. something went
         # *really* bad) we simply return a basic textual error notice.
-        if hasattr(self, 'r_params'):
+        if getattr(self, 'r_params', None) is not None:
             self.render("error.html", status_code=status_code, **self.r_params)
         else:
             self.write("A critical error has occurred :-(")

@@ -3,6 +3,7 @@
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2015-2016 William Di Luigi <williamdiluigi@gmail.com>
+# Copyright © 2016-2017 Stefano Maggiolo <s.maggiolo@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -31,10 +32,10 @@ import os
 import sys
 import codecs
 
-from cms import utf8_decoder, LANG_C, LANG_CPP, LANG_JAVA, LANG_PASCAL, \
-    LANG_PHP, LANG_PYTHON
+from cms import utf8_decoder
 from cms.db import Dataset, File, FSObject, Participation, SessionGen, \
     Submission, SubmissionResult, Task, User
+from cms.grading import languagemanager
 
 
 logger = logging.getLogger(__name__)
@@ -51,13 +52,14 @@ _RAW_TEMPLATE_DATA = """
 
 
 TEMPLATE = {
-    LANG_C: "/**%s*/\n" % _RAW_TEMPLATE_DATA,
-    LANG_PASCAL: "(**%s*)\n" % _RAW_TEMPLATE_DATA,
-    LANG_PYTHON: "\"\"\"%s\"\"\"\n" % _RAW_TEMPLATE_DATA,
-    LANG_PHP: "<?php\n/**%s*/\n?>" % _RAW_TEMPLATE_DATA,
+    ".c": "/**%s*/\n" % _RAW_TEMPLATE_DATA,
+    ".pas": "(**%s*)\n" % _RAW_TEMPLATE_DATA,
+    ".py": "\"\"\"%s\"\"\"\n" % _RAW_TEMPLATE_DATA,
+    ".php": "<?php\n/**%s*/\n?>" % _RAW_TEMPLATE_DATA,
+    ".hs": "{-%s-}\n" % _RAW_TEMPLATE_DATA,
 }
-TEMPLATE[LANG_CPP] = TEMPLATE[LANG_C]
-TEMPLATE[LANG_JAVA] = TEMPLATE[LANG_C]
+TEMPLATE[".cpp"] = TEMPLATE[".c"]
+TEMPLATE[".java"] = TEMPLATE[".c"]
 
 
 def filter_top_scoring(results, unique):
@@ -105,6 +107,9 @@ def main():
                         help="id of user (default: all users)")
     parser.add_argument("-s", "--submission-id", action="store", type=int,
                         help="id of submission (default: all submissions)")
+    parser.add_argument("--utf8", action="store_true",
+                        help="if set, the files will be encoded in utf8"
+                             " when possible")
     parser.add_argument("--add-info", action="store_true",
                         help="if set, information on the submission will"
                              " be added in the first lines of each file")
@@ -114,8 +119,8 @@ def main():
                         default=0.0)
     parser.add_argument("--filename", action="store", type=utf8_decoder,
                         help="the filename format to use"
-                             " (default: {id}.{name}.{ext})",
-                        default="{id}.{name}.{ext}")
+                             " (default: {id}.{name}{ext})",
+                        default="{id}.{name}{ext}")
     parser.add_argument("output_dir", action="store", type=utf8_decoder,
                         help="directory where to save the submissions")
 
@@ -129,11 +134,16 @@ def main():
 
     args = parser.parse_args()
 
+    if args.add_info and not args.utf8:
+        logger.critical("If --add-info is specified, then --utf8 must be"
+                        " specified as well.")
+        return 1
+
     if not os.path.exists(args.output_dir):
         os.mkdir(args.output_dir)
     if not os.path.isdir(args.output_dir):
         logger.critical("The output-dir parameter must point to a directory")
-        sys.exit(1)
+        return 1
 
     with SessionGen() as session:
         q = session.query(Submission)\
@@ -182,8 +192,9 @@ def main():
             name = f_filename
             if name.endswith(".%l"):
                 name = name[:-3]  # remove last 3 chars
+            ext = languagemanager.get_language(s_language).source_extension
 
-            filename = args.filename.format(id=s_id, name=name, ext=s_language,
+            filename = args.filename.format(id=s_id, name=name, ext=ext,
                                             time=s_timestamp, user=u_name)
             filename = os.path.join(args.output_dir, filename)
             if os.path.exists(filename):
@@ -193,23 +204,39 @@ def main():
             fso = FSObject.get_from_digest(f_digest, session)
             assert fso is not None
             with fso.get_lobject(mode="rb") as file_obj:
-                data = file_obj.read().decode('utf-8')
+                data = file_obj.read()
 
-                if args.add_info:
-                    data = TEMPLATE[s_language] % (
-                        u_name,
-                        u_fname,
-                        u_lname,
-                        t_name,
-                        sr_score,
-                        s_timestamp
-                    ) + data
+                if args.utf8:
+                    try:
+                        data = utf8_decoder(data)
+                    except TypeError:
+                        logger.critical("Could not guess encoding of file "
+                                        "'%s'. Aborting.",
+                                        filename)
+                        sys.exit(1)
 
-                with codecs.open(filename, "w", encoding="utf-8") as file_out:
-                    file_out.write(data)
+                    if args.add_info:
+                        data = TEMPLATE[ext] % (
+                            u_name,
+                            u_fname,
+                            u_lname,
+                            t_name,
+                            sr_score,
+                            s_timestamp
+                        ) + data
+
+                    # Print utf8-encoded, possibly altered data
+                    with codecs.open(filename, "w", encoding="utf-8") as f_out:
+                        f_out.write(data)
+                else:
+                    # Print raw, untouched binary data
+                    with open(filename, "wb") as f_out:
+                        f_out.write(data)
 
             done += 1
             print(done, "/", len(results))
+
+    return 0
 
 
 if __name__ == "__main__":

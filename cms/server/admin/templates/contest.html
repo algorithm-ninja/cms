@@ -5,17 +5,11 @@
   <h1>Contest configuration</h1>
 </div>
 
-{% if len(config.contest_listen_port) > 0 %}
-  {% set ratio = round(len(contest.participations) * 1.0 / len(config.contest_listen_port), 2) %}
-  {% if ratio >= 40 %}
-    At the moment, you have {{ ratio }} users for each ContestWebServer, on average.<br/>
-    A CWS can handle 40 simultaneous request. This situation might cause many requests to fail.
-  {% end %}
-{% end %}
+{% include fragments/overload_warning.html %}
 
 <!-- We use "multipart/form-data" to have Tornado distinguish between missing and empty values. -->
-<form enctype="multipart/form-data" action="{{ url_root }}/contest/{{ contest.id }}" method="POST" name="edit_contest">
-
+<form enctype="multipart/form-data" action="{{ url_root }}/contest/{{ contest.id }}" method="POST" name="edit_contest" style="display:inline;">
+  {% module xsrf_form_html() %}
   <table class="sub_table">
 
     <tr><td colspan=2><h2>Contest information</h2></td></tr>
@@ -49,7 +43,7 @@
       </td>
       <td>
         {% for lang in LANGUAGES %}
-          <label><input type="checkbox" name="languages" value="{{ lang }}" {{ "checked" if lang in contest.languages else "" }}>{{ LANGUAGE_NAMES[lang] }}</label>
+          <label><input type="checkbox" name="languages" value="{{ lang.name }}" {{ "checked" if lang.name in contest.languages else "" }}>{{ lang.name }}</label>
         {% end %}
       </td>
     </tr>
@@ -60,6 +54,24 @@
       </td>
       <td>
         <input type="checkbox" id="submissions_download_allowed" name="submissions_download_allowed" {{ "checked" if contest.submissions_download_allowed else "" }}/>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <span class="info" title="Whether contestants can submit questions."></span>
+        <label for="allow_questions">Allow questions</label>
+      </td>
+      <td>
+        <input type="checkbox" id="allow_questions" name="allow_questions" {{ "checked" if contest.allow_questions else "" }}/>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <span class="info" title="Whether contestants can submit user tests."></span>
+        <label for="allow_user_tests">Allow user tests</label>
+      </td>
+      <td>
+        <input type="checkbox" id="allow_user_tests" name="allow_user_tests" {{ "checked" if contest.allow_user_tests else "" }}/>
       </td>
     </tr>
     <tr>
@@ -79,6 +91,15 @@
       </td>
       <td>
         <input type="checkbox" id="block_hidden_participations" name="block_hidden_participations" {{ "checked" if contest.block_hidden_participations else "" }}/>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <span class="info" title="If checked, contestants will be able to log in using username and password."></span>
+        <label for="allow_password_authentication">Allow password authentication</label>
+      </td>
+      <td>
+        <input type="checkbox" id="allow_password_authentication" name="allow_password_authentication" {{ "checked" if contest.allow_password_authentication else "" }}/>
       </td>
     </tr>
     <tr>
@@ -241,5 +262,17 @@
          >
   <input type="reset" value="Reset">
 </form>
+<form action="{{ url_root }}/contests" method="POST" style="display:inline;">
+    {% module xsrf_form_html() %}
+    <input type="hidden" name="contest_id" value="{{contest.id}}"/>
+    <input type="submit"
+         name="operation"
+         value="Remove" style="float: right;"
+{% if not current_user.permission_all %}
+         disabled
+{% end %}
+         />
+</form>
+
 
 {% end %}

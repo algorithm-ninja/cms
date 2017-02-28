@@ -3,9 +3,10 @@
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2014 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2015 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2010-2016 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
 # Copyright © 2013-2015 Luca Wehrstedt <luca.wehrstedt@gmail.com>
+# Copyright © 2016 Luca Versari <veluca93@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -35,10 +36,10 @@ import gevent.coros
 
 from cms.io import Service, rpc_method
 from cms.db import SessionGen, Contest
-from cms.db.filecacher import FileCacher
+from cms.db.filecacher import FileCacher, TombstoneError
 from cms.grading import JobException
 from cms.grading.tasktypes import get_task_type
-from cms.grading.Job import Job
+from cms.grading.Job import CompilationJob, EvaluationJob, JobGroup
 
 
 logger = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ class Worker(Service):
     JOB_TYPE_COMPILATION = "compile"
     JOB_TYPE_EVALUATION = "evaluate"
 
-    def __init__(self, shard):
+    def __init__(self, shard, fake_worker_time=None):
         Service.__init__(self, shard)
         self.file_cacher = FileCacher(self)
 
@@ -64,6 +65,8 @@ class Worker(Service):
         self._total_free_time = 0
         self._total_busy_time = 0
         self._number_execution = 0
+
+        self._fake_worker_time = fake_worker_time
 
     @rpc_method
     def precache_files(self, contest_id):
@@ -92,32 +95,57 @@ class Worker(Service):
         logger.info("Precaching finished.")
 
     @rpc_method
-    def execute_job(self, job_dict):
-        """Receive a group of jobs in a dict format and executes them
-        one by one.
+    def execute_job_group(self, job_group_dict):
+        """Receive a group of jobs in a list format and executes them one by
+        one.
 
-        job_dict (dict): a dictionary suitable to be imported from Job.
+        job_group_dict ({}): a JobGroup exported to dict.
+
+        return ({}): the same JobGroup in dict format, but containing
+            the results.
 
         """
         start_time = time.time()
-        job = Job.import_from_dict_with_type(job_dict)
+        job_group = JobGroup.import_from_dict(job_group_dict)
 
         if self.work_lock.acquire(False):
-
             try:
-                logger.info("Starting job.",
-                            extra={"operation": job.info})
+                logger.info("Starting job group.")
+                for job in job_group.jobs:
+                    logger.info("Starting job.",
+                                extra={"operation": job.info})
 
-                job.shard = self.shard
+                    job.shard = self.shard
 
-                task_type = get_task_type(job.task_type,
-                                          job.task_type_parameters)
-                task_type.execute_job(job, self.file_cacher)
+                    if self._fake_worker_time is None:
+                        task_type = get_task_type(job.task_type,
+                                                  job.task_type_parameters)
+                        try:
+                            task_type.execute_job(job, self.file_cacher)
+                        except TombstoneError:
+                            job.success = False
+                            job.plus = {"tombstone": True}
+                    else:
+                        time.sleep(self._fake_worker_time)
+                        job.success = True
+                        job.text = ["ok"]
+                        job.plus = {
+                            "execution_time": self._fake_worker_time,
+                            "execution_wall_clock_time":
+                            self._fake_worker_time,
+                            "execution_memory": 1000,
+                        }
 
-                logger.info("Finished job.",
-                            extra={"operation": job.info})
+                        if isinstance(job, CompilationJob):
+                            job.compilation_success = True
+                        elif isinstance(job, EvaluationJob):
+                            job.outcome = "1.0"
 
-                return job.export_to_dict()
+                    logger.info("Finished job.",
+                                extra={"operation": job.info})
+
+                logger.info("Finished job group.")
+                return job_group.export_to_dict()
 
             except:
                 err_msg = "Worker failed."

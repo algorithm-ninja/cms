@@ -5,7 +5,8 @@
 # Copyright © 2010-2013 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
 # Copyright © 2010-2015 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
-# Copyright © 2012-2014 Luca Wehrstedt <luca.wehrstedt@gmail.com>
+# Copyright © 2012-2016 Luca Wehrstedt <luca.wehrstedt@gmail.com>
+# Copyright © 2016 Myungwoo Chun <mc.tamaki@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -38,6 +39,7 @@ from tornado.web import RequestHandler
 import tornado.locale
 
 import gevent
+import io
 
 from cms.db import Session
 from cms.db.filecacher import FileCacher
@@ -189,7 +191,9 @@ def actual_phase_required(*actual_phases):
     def decorator(func):
         @wraps(func)
         def wrapped(self, *args, **kwargs):
-            if self.r_params["actual_phase"] not in actual_phases:
+            if self.r_params["actual_phase"] not in actual_phases and \
+                    (self.current_user is None or
+                     not self.current_user.unrestricted):
                 # TODO maybe return some error code?
                 self.redirect("/")
             else:
@@ -338,9 +342,9 @@ def get_score_class(score, max_score):
 def N_(*unused_args, **unused_kwargs):
     pass
 
-# This is a string in task_submissions.html and test_interface.html
-# that for some reason doesn't get included in cms.pot.
+# Some strings in templates that for some reason don't get included in cms.pot.
 N_("loading...")
+N_("unknown")
 
 N_("%d second", "%d seconds", 0)
 N_("%d minute", "%d minutes", 0)
@@ -574,9 +578,7 @@ def file_handler_gen(BaseClass):
 
         """
         def fetch(self, digest, content_type, filename):
-            """Sends the RPC to the FS.
-
-            """
+            """Send a file from FileCacher by its digest."""
             if digest == "":
                 logger.error("No digest given")
                 self.finish()
@@ -584,12 +586,29 @@ def file_handler_gen(BaseClass):
             try:
                 self.temp_file = \
                     self.application.service.file_cacher.get_file(digest)
-            except Exception as error:
-                logger.error("Exception while retrieving file `%s'. %r",
-                             filename, error)
+            except Exception:
+                logger.error("Exception while retrieving file `%s'.", digest,
+                             exc_info=True)
                 self.finish()
                 return
+            self._fetch_temp_file(content_type, filename)
 
+        def fetch_from_filesystem(self, filepath, content_type, filename):
+            """Send a file from filesystem by filepath."""
+            try:
+                self.temp_file = io.open(filepath, 'rb')
+            except Exception:
+                logger.error("Exception while retrieving file `%s'.", filepath,
+                             exc_info=True)
+                self.finish()
+                return
+            self._fetch_temp_file(content_type, filename)
+
+        def _fetch_temp_file(self, content_type, filename):
+            """When calling this method, self.temp_file must be a fileobj
+            seeked at the beginning of the file.
+
+            """
             self.set_header("Content-Type", content_type)
             self.set_header("Content-Disposition",
                             "attachment; filename=\"%s\"" % filename)
@@ -669,6 +688,10 @@ class CommonRequestHandler(RequestHandler):
         self.set_header("Cache-Control", "no-cache, must-revalidate")
         self.sql_session = Session()
         self.sql_session.expire_all()
+
+    @property
+    def service(self):
+        return self.application.service
 
     def redirect(self, url):
         url = get_url_root(self.request.path) + url

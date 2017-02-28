@@ -3,13 +3,14 @@
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2014 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2015 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2010-2017 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
 # Copyright © 2012-2014 Luca Wehrstedt <luca.wehrstedt@gmail.com>
 # Copyright © 2013 Bernard Blackham <bernard@largestprime.net>
 # Copyright © 2014 Artem Iglikov <artem.iglikov@gmail.com>
 # Copyright © 2014 Fabian Gundlach <320pointsguy@gmail.com>
 # Copyright © 2015 William Di Luigi <williamdiluigi@gmail.com>
+# Copyright © 2016 Myungwoo Chun <mc.tamaki@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -36,6 +37,7 @@ import io
 import logging
 import os
 import pickle
+import re
 
 from urllib import quote
 
@@ -43,11 +45,13 @@ import tornado.web
 
 from sqlalchemy import func
 
-from cms import config, filename_to_language
+from cms import config
 from cms.db import Task, UserTest, UserTestFile, UserTestManager
+from cms.grading.languagemanager import get_language
 from cms.grading.tasktypes import get_task_type
 from cms.server import actual_phase_required, format_size
 from cmscommon.archive import Archive
+from cmscommon.crypto import encrypt_number
 from cmscommon.datetime import make_timestamp
 from cmscommon.mimetypes import get_type_for_file_name
 
@@ -66,6 +70,10 @@ class UserTestInterfaceHandler(BaseHandler):
     @actual_phase_required(0)
     def get(self):
         participation = self.current_user
+
+        if not self.r_params["testing_enabled"]:
+            self.redirect("/")
+            return
 
         user_tests = dict()
         user_tests_left = dict()
@@ -119,10 +127,26 @@ class UserTestHandler(BaseHandler):
     # The following code has been taken from SubmitHandler and adapted
     # for UserTests.
 
+    def _send_error(self, subject, text, task):
+        """Shorthand for sending a notification and redirecting."""
+        logger.warning("Sent error: `%s' - `%s'", subject, text)
+        self.application.service.add_notification(
+            self.current_user.user.username,
+            self.timestamp,
+            subject,
+            text,
+            NOTIFICATION_ERROR)
+        task_name = quote(task.name, safe='')
+        self.redirect("/testing?{0}".format(task_name))
+
     @tornado.web.authenticated
     @actual_phase_required(0)
     def post(self, task_name):
         participation = self.current_user
+
+        if not self.r_params["testing_enabled"]:
+            self.redirect("/")
+            return
 
         try:
             task = self.contest.get_task(task_name)
@@ -147,7 +171,8 @@ class UserTestHandler(BaseHandler):
                     .filter(Task.contest == contest)\
                     .filter(UserTest.participation == participation)\
                     .scalar()
-                if user_test_c >= contest.max_user_test_number:
+                if user_test_c >= contest.max_user_test_number and \
+                        not self.current_user.unrestricted:
                     raise ValueError(
                         self._("You have reached the maximum limit of "
                                "at most %d tests among all tasks.") %
@@ -157,19 +182,14 @@ class UserTestHandler(BaseHandler):
                     .filter(UserTest.task == task)\
                     .filter(UserTest.participation == participation)\
                     .scalar()
-                if user_test_t >= task.max_user_test_number:
+                if user_test_t >= task.max_user_test_number and \
+                        not self.current_user.unrestricted:
                     raise ValueError(
                         self._("You have reached the maximum limit of "
                                "at most %d tests on this task.") %
                         task.max_user_test_number)
         except ValueError as error:
-            self.application.service.add_notification(
-                participation.user.username,
-                self.timestamp,
-                self._("Too many tests!"),
-                error.message,
-                NOTIFICATION_ERROR)
-            self.redirect("/testing?%s" % quote(task.name, safe=''))
+            self._send_error(self._("Too many tests!"), error.message, task)
             return
 
         # Enforce minimum time between user_tests
@@ -183,7 +203,8 @@ class UserTestHandler(BaseHandler):
                     .first()
                 if last_user_test_c is not None and \
                         self.timestamp - last_user_test_c.timestamp < \
-                        contest.min_user_test_interval:
+                        contest.min_user_test_interval and \
+                        not self.current_user.unrestricted:
                     raise ValueError(
                         self._("Among all tasks, you can test again "
                                "after %d seconds from last test.") %
@@ -199,37 +220,43 @@ class UserTestHandler(BaseHandler):
             if task.min_user_test_interval is not None:
                 if last_user_test_t is not None and \
                         self.timestamp - last_user_test_t.timestamp < \
-                        task.min_user_test_interval:
+                        task.min_user_test_interval and \
+                        not self.current_user.unrestricted:
                     raise ValueError(
                         self._("For this task, you can test again "
                                "after %d seconds from last test.") %
                         task.min_user_test_interval.total_seconds())
         except ValueError as error:
-            self.application.service.add_notification(
-                participation.user.username,
-                self.timestamp,
-                self._("Tests too frequent!"),
-                error.message,
-                NOTIFICATION_ERROR)
-            self.redirect("/testing?%s" % quote(task.name, safe=''))
+            self._send_error(
+                self._("Tests too frequent!"), error.message, task)
             return
+
+        # Required files from the user.
+        required = set([sfe.filename for sfe in task.submission_format] +
+                       task_type.get_user_managers(task.submission_format) +
+                       ["input"])
 
         # Ensure that the user did not submit multiple files with the
         # same name.
         if any(len(filename) != 1 for filename in self.request.files.values()):
-            self.application.service.add_notification(
-                participation.user.username,
-                self.timestamp,
+            self._send_error(
                 self._("Invalid test format!"),
                 self._("Please select the correct files."),
-                NOTIFICATION_ERROR)
-            self.redirect("/testing?%s" % quote(task.name, safe=''))
+                task)
             return
 
         # If the user submitted an archive, extract it and use content
-        # as request.files.
+        # as request.files. But only valid for "output only" (i.e.,
+        # not for submissions requiring a programming language
+        # identification).
         if len(self.request.files) == 1 and \
                 self.request.files.keys()[0] == "submission":
+            if any(filename.endswith(".%l") for filename in required):
+                self._send_error(
+                    self._("Invalid test format!"),
+                    self._("Please select the correct files."),
+                    task)
+                return
             archive_data = self.request.files["submission"][0]
             del self.request.files["submission"]
 
@@ -237,13 +264,10 @@ class UserTestHandler(BaseHandler):
             archive = Archive.from_raw_data(archive_data["body"])
 
             if archive is None:
-                self.application.service.add_notification(
-                    participation.user.username,
-                    self.timestamp,
+                self._send_error(
                     self._("Invalid archive format!"),
                     self._("The submitted archive could not be opened."),
-                    NOTIFICATION_ERROR)
-                self.redirect("/testing?%s" % quote(task.name, safe=''))
+                    task)
                 return
 
             # Extract the archive.
@@ -261,19 +285,13 @@ class UserTestHandler(BaseHandler):
         # This ensure that the user sent one file for every name in
         # submission format and no more. Less is acceptable if task
         # type says so.
-        required = set([sfe.filename for sfe in task.submission_format] +
-                       task_type.get_user_managers(task.submission_format) +
-                       ["input"])
         provided = set(self.request.files.keys())
         if not (required == provided or (task_type.ALLOW_PARTIAL_SUBMISSION
                                          and required.issuperset(provided))):
-            self.application.service.add_notification(
-                participation.user.username,
-                self.timestamp,
+            self._send_error(
                 self._("Invalid test format!"),
                 self._("Please select the correct files."),
-                NOTIFICATION_ERROR)
-            self.redirect("/testing?%s" % quote(task.name, safe=''))
+                task)
             return
 
         # Add submitted files. After this, files is a dictionary indexed
@@ -284,72 +302,56 @@ class UserTestHandler(BaseHandler):
         for uploaded, data in self.request.files.iteritems():
             files[uploaded] = (data[0]["filename"], data[0]["body"])
 
+        # Read the submission language provided in the request; we
+        # integrate it with the language fetched from the previous
+        # submission (if we use it) and later make sure it is
+        # recognized and allowed.
+        submission_lang = self.get_argument("language", None)
+        need_lang = any(our_filename.find(".%l") != -1
+                        for our_filename in files)
+
         # If we allow partial submissions, implicitly we recover the
-        # non-submitted files from the previous submission. And put them
+        # non-submitted files from the previous user test. And put them
         # in file_digests (i.e. like they have already been sent to FS).
-        submission_lang = None
         file_digests = {}
-        if task_type.ALLOW_PARTIAL_SUBMISSION and last_user_test_t is not None:
+        if task_type.ALLOW_PARTIAL_SUBMISSION and \
+                last_user_test_t is not None and \
+                (submission_lang is None or
+                 submission_lang == last_user_test_t.language):
+            submission_lang = last_user_test_t.language
             for filename in required.difference(provided):
                 if filename in last_user_test_t.files:
-                    # If we retrieve a language-dependent file from
-                    # last submission, we take not that language must
-                    # be the same.
-                    if "%l" in filename:
-                        submission_lang = last_user_test_t.language
                     file_digests[filename] = \
                         last_user_test_t.files[filename].digest
 
-        # We need to ensure that everytime we have a .%l in our
-        # filenames, the user has one amongst ".cpp", ".c", or ".pas,
-        # and that all these are the same (i.e., no mixed-language
-        # submissions).
-
-        error = None
-        for our_filename in files:
-            user_filename = files[our_filename][0]
-            if our_filename.find(".%l") != -1:
-                lang = filename_to_language(user_filename)
-                if lang is None:
-                    error = self._("Cannot recognize test's language.")
-                    break
-                elif submission_lang is not None and \
-                        submission_lang != lang:
-                    error = self._("All sources must be in the same language.")
-                    break
-                else:
-                    submission_lang = lang
+        # Throw an error if task needs a language, but we don't have
+        # it or it is not allowed / recognized.
+        if need_lang:
+            error = None
+            if submission_lang is None:
+                error = self._("Cannot recognize the user test language.")
+            elif submission_lang not in contest.languages:
+                error = self._("Language %s not allowed in this contest.") \
+                    % submission_lang
         if error is not None:
-            self.application.service.add_notification(
-                participation.user.username,
-                self.timestamp,
-                self._("Invalid test!"),
-                error,
-                NOTIFICATION_ERROR)
-            self.redirect("/testing?%s" % quote(task.name, safe=''))
+            self._send_error(self._("Invalid test!"), error, task)
             return
 
         # Check if submitted files are small enough.
         if any([len(f[1]) > config.max_submission_length
                 for n, f in files.items() if n != "input"]):
-            self.application.service.add_notification(
-                participation.user.username,
-                self.timestamp,
+            self._send_error(
                 self._("Test too big!"),
                 self._("Each source file must be at most %d bytes long.") %
                 config.max_submission_length,
-                NOTIFICATION_ERROR)
-            self.redirect("/testing?%s" % quote(task.name, safe=''))
+                task)
             return
         if len(files["input"][1]) > config.max_input_length:
-            self.application.service.add_notification(
-                participation.user.username,
-                self.timestamp,
+            self._send_error(
                 self._("Input too big!"),
                 self._("The input file must be at most %d bytes long.") %
                 config.max_input_length,
-                NOTIFICATION_ERROR)
-            self.redirect("/testing?%s" % quote(task.name, safe=''))
+                task)
             return
 
         # All checks done, submission accepted.
@@ -390,13 +392,10 @@ class UserTestHandler(BaseHandler):
         # In case of error, the server aborts the submission
         except Exception as error:
             logger.error("Storage failed! %s", error)
-            self.application.service.add_notification(
-                participation.user.username,
-                self.timestamp,
+            self._send_error(
                 self._("Test storage failed!"),
                 self._("Please try again."),
-                NOTIFICATION_ERROR)
-            self.redirect("/testing?%s" % quote(task.name, safe=''))
+                task)
             return
 
         # All the files are stored, ready to submit!
@@ -415,7 +414,8 @@ class UserTestHandler(BaseHandler):
         for filename in task_type.get_user_managers(task.submission_format):
             digest = file_digests[filename]
             if submission_lang is not None:
-                filename = filename.replace("%l", submission_lang)
+                extension = get_language(submission_lang).source_extension
+                filename = filename.replace(".%l", extension)
             self.sql_session.add(
                 UserTestManager(filename, digest, user_test=user_test))
 
@@ -430,7 +430,11 @@ class UserTestHandler(BaseHandler):
             self._("Your test has been received "
                    "and is currently being executed."),
             NOTIFICATION_SUCCESS)
-        self.redirect("/testing?%s" % quote(task.name, safe=''))
+        # The argument (encripted user test id) is not used by CWS
+        # (nor it discloses information to the user), but it is useful
+        # for automatic testing to obtain the user test id).
+        self.redirect("/testing?%s&%s" % (
+            quote(task.name, safe=''), encrypt_number(user_test.id)))
 
 
 class UserTestStatusHandler(BaseHandler):
@@ -441,6 +445,9 @@ class UserTestStatusHandler(BaseHandler):
     @actual_phase_required(0)
     def get(self, task_name, user_test_num):
         participation = self.current_user
+
+        if not self.r_params["testing_enabled"]:
+            raise tornado.web.HTTPError(404)
 
         try:
             task = self.contest.get_task(task_name)
@@ -497,6 +504,9 @@ class UserTestDetailsHandler(BaseHandler):
     def get(self, task_name, user_test_num):
         participation = self.current_user
 
+        if not self.r_params["testing_enabled"]:
+            raise tornado.web.HTTPError(404)
+
         try:
             task = self.contest.get_task(task_name)
         except KeyError:
@@ -524,6 +534,9 @@ class UserTestIOHandler(FileHandler):
     @actual_phase_required(0)
     def get(self, task_name, user_test_num, io):
         participation = self.current_user
+
+        if not self.r_params["testing_enabled"]:
+            raise tornado.web.HTTPError(404)
 
         try:
             task = self.contest.get_task(task_name)
@@ -563,6 +576,9 @@ class UserTestFileHandler(FileHandler):
     def get(self, task_name, user_test_num, filename):
         participation = self.current_user
 
+        if not self.r_params["testing_enabled"]:
+            raise tornado.web.HTTPError(404)
+
         try:
             task = self.contest.get_task(task_name)
         except KeyError:
@@ -577,22 +593,25 @@ class UserTestFileHandler(FileHandler):
         if user_test is None:
             raise tornado.web.HTTPError(404)
 
-        # filename follows our convention (e.g. 'foo.%l'), real_filename
-        # follows the one we present to the user (e.g. 'foo.c').
-        real_filename = filename
+        # filename is the name used by the browser, hence is something
+        # like 'foo.c' (and the extension is CMS's preferred extension
+        # for the language). To retrieve the right file, we need to
+        # decode it to 'foo.%l'.
+        stored_filename = filename
         if user_test.language is not None:
-            real_filename = filename.replace("%l", user_test.language)
+            extension = get_language(user_test.language).source_extension
+            stored_filename = re.sub(r'%s$' % extension, '.%l', filename)
 
-        if filename in user_test.files:
-            digest = user_test.files[filename].digest
-        elif filename in user_test.managers:
-            digest = user_test.managers[filename].digest
+        if stored_filename in user_test.files:
+            digest = user_test.files[stored_filename].digest
+        elif stored_filename in user_test.managers:
+            digest = user_test.managers[stored_filename].digest
         else:
             raise tornado.web.HTTPError(404)
         self.sql_session.close()
 
-        mimetype = get_type_for_file_name(real_filename)
+        mimetype = get_type_for_file_name(filename)
         if mimetype is None:
             mimetype = 'application/octet-stream'
 
-        self.fetch(digest, mimetype, real_filename)
+        self.fetch(digest, mimetype, filename)

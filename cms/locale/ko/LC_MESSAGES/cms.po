@@ -1,87 +1,98 @@
 # Korean translations for CMS.
-# Copyright © 2010-2015 CMS authors
+# Copyright © 2010-2017 CMS authors
 # This file is distributed under the same license as CMS.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# Hyunmin Choi <auxiliarycode@gmail.com>, 2015.
+# Myungwoo Chun <mc.tamaki@gmail.com>, 2016-2017.
+# Hyungsuk Yoon <youhanmir@gmail.com>, 2016.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: 0.3\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-02-02 17:15+0200\n"
-"PO-Revision-Date: 2015-02-15 00:53+0900\n"
-"Last-Translator: Hyun Min Choi <auxiliarycode@gmail.com>\n"
+"POT-Creation-Date: 2017-01-29 19:38+0000\n"
+"PO-Revision-Date: 2017-02-18 21:03+0900\n"
+"Last-Translator: Myungwoo Chun <mc.tamaki@gmail.com>\n"
 "Language-Team: Korean\n"
 "Language: ko\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Poedit 1.5.4\n"
+"X-Generator: Poedit 1.8.11\n"
 
 msgid "Compilation succeeded"
 msgstr "컴파일에 성공하였습니다."
 
 msgid "Your submission successfully compiled to an excutable."
-msgstr "제출 파일이 실행 파일로 성공적으로 컴파일되었습니다."
+msgstr "성공적으로 제출 파일을 실행 파일로 컴파일하였습니다."
 
 msgid "Compilation failed"
 msgstr "컴파일에 실패하였습니다."
 
 msgid "Your submission did not compile correctly."
-msgstr "제출 파일이 컴파일에 실패했습니다."
+msgstr "제출 파일이 컴파일에 실패하였습니다."
 
 msgid "Compilation timed out"
-msgstr "컴파일 시간 초과."
+msgstr "컴파일 도중 시간 제한을 초과하였습니다."
 
 msgid ""
 "Your submission exceeded the time limit while compiling. This might be "
 "caused by an excessive use of C++ templates, for example."
 msgstr ""
-"제출 파일이 컴파일 도중 시간 제한을 초과했습니다. C++ 템플릿의 과도한 사용으"
-"로 인해 일어났을 수도 있습니다."
+"제출 파일이 컴파일 도중 시간 제한을 초과하였습니다. 이는 C++ 템플릿의 과도한 "
+"사용으로 인해 일어났을 수 있습니다."
 
 #, python-format
 msgid ""
 "Compilation killed with signal %s (could be triggered by violating memory "
 "limits)"
-msgstr "시그널 %s로 인한 컴파일 중지 (메모리 제한을 초과하면서 발생할 수 있음)"
+msgstr ""
+"시그널 %s로 인하여 컴파일이 중지되었습니다. (이는 메모리 제한을 초과하면서 발"
+"생할 수 있습니다.)"
 
 msgid ""
 "Your submission was killed with the specified signal. Among other things, "
 "this might be caused by exceeding the memory limit for the compilation, and "
 "in turn by an excessive use of C++ templates, for example."
 msgstr ""
-"제출이 명시된 시그널과 함께 종료되었습니다. 이런 문제는 컴파일 시 메모리를 초"
-"과하거나 C++ 템플릿의 과도한 사용으로 인해 발생했을 수도 있습니다."
+"제출이 명시된 시그널과 함께 종료되었습니다. 이런 문제는 컴파일 도중 메모리 제"
+"한을 초과하거나 C++ 템플릿의 과도한 사용으로 인해 발생했을 수 있습니다."
 
 msgid "Output is correct"
 msgstr "맞았습니다."
 
 msgid "Your submission ran and gave the correct answer"
-msgstr "제출 파일이 성공적으로 실행되어 올바른 답을 출력했습니다."
+msgstr "제출 파일이 성공적으로 실행되어 올바른 답을 출력하였습니다."
+
+msgid "Output is partially correct"
+msgstr "부분적으로 맞았습니다."
+
+msgid "Your submission ran and gave the partially correct answer"
+msgstr ""
+"제출 파일이 성공적으로 실행되었지만 부분적으로 올바른 답을 출력하였습니다. "
 
 msgid "Output isn't correct"
 msgstr "틀렸습니다."
 
 msgid "Your submission ran, but gave the wrong answer"
-msgstr "제출 파일이 성공적으로 실행되었지만 오답을 출력했습니다."
+msgstr "제출 파일이 성공적으로 실행되었지만 올바르지 않은 답을 출력하였습니다."
 
 #, python-format
 msgid "Evaluation didn't produce file %s"
-msgstr "평가 과정 중 파일 %s가 생성되지 않음"
+msgstr "평가 과정 중 파일 %s가 생성되지 않았습니다."
 
 msgid "Your submission ran, but did not write on the correct output file"
 msgstr ""
 "제출 파일이 성공적으로 실행되었지만 올바른 출력 파일에 출력하지 않았습니다."
 
 msgid "Execution timed out"
-msgstr "실행 제한 시간 초과."
+msgstr "실행 시간을 초과하였습니다."
 
 msgid "Your submission used too much CPU time."
-msgstr "제출이 과도한 CPU 시간을 소모했습니다."
+msgstr "제출이 너무 많은 CPU 시간을 소모했습니다."
 
 msgid "Execution timed out (wall clock limit exceeded)"
-msgstr "제한 시간 초과"
+msgstr "실행 시간을 초과하였습니다. (wall clock)"
 
 msgid ""
 "Your submission used too much total time. This might be triggered by "
@@ -97,7 +108,9 @@ msgstr ""
 msgid ""
 "Execution killed with signal %d (could be triggered by violating memory "
 "limits)"
-msgstr "시그널 %d로 인한 실행 중지 (메모리 제한을 초과하면서 발생할 수 있음)"
+msgstr ""
+"시그널 %d로 인하여 실행이 중지되었습니다. (이는 메모리 제한을 초과하면서 발생"
+"할 수 있습니다.)"
 
 msgid ""
 "Your submission was killed with the specified signal. Among other things, "
@@ -105,33 +118,34 @@ msgid ""
 "reason, the memory usage visible in the submission details is the usage "
 "before the allocation that caused the signal."
 msgstr ""
-"제출이 명시된 시그널과 함께 종료되었습니다. 이런 문제는 컴파일 시 메모리 제한"
-"을 초과해 발생했을 수도 있습니다. 이 문제가 발생한 경우 명시된 메모리 사용량"
+"제출이 명시된 시그널과 함께 종료되었습니다. 이런 문제는 실행 도중 메모리 제한"
+"을 초과하여 발생했을 수 있습니다. 이 문제가 발생한 경우, 명시된 메모리 사용량"
 "이 실제 실행 시 메모리 사용량보다 매우 적을 수 있음을 주의해주십시오."
 
 #, python-format
 msgid "Execution killed because of forbidden syscall %s"
-msgstr "%s 제한된 시스템 콜."
+msgstr "제한된 시스템 콜 %s로 인하여 실행이 중지되었습니다."
 
 msgid ""
 "Your submission was killed because it tried to use the forbidden syscall "
 "specified in the message."
-msgstr "올바르지 못한 시스템 콜 호출을 시도해 프로그램이 종료되었습니다."
+msgstr "올바르지 못한 시스템 콜 호출을 시도하여 실행이 중지되었습니다."
 
 msgid "Execution killed because of forbidden file access"
-msgstr "제한된 파일 접근으로 인한 실행 중지"
+msgstr "제한된 파일 접근으로 인하여 실행이 중지되었습니다."
 
 msgid ""
 "Your submission was killed because it tried to read or write a forbidden "
 "file."
-msgstr "금지된 파일에 접근하려다 프로그램이 종료되었습니다."
+msgstr ""
+"제한된 파일을 읽거나, 제한된 파일에 쓰려는 시도를 하여 실행이 중지되었습니다."
 
 msgid "Execution failed because the return code was nonzero"
-msgstr "return 값이 0이 아님으로 인한 실행 중지"
+msgstr "return 값이 0이 아니어서 실행에 실패하였습니다."
 
 msgid ""
 "Your submission failed because it exited with a return code different from 0."
-msgstr "0이 아닌 값을 리턴해 제출에 실패했습니다."
+msgstr "return 값이 0이 아니어서 제출에 실패했습니다."
 
 msgid "N/A"
 msgstr "N/A"
@@ -165,216 +179,13 @@ msgid "Invalid files in submission"
 msgstr "부적절한 파일 제출"
 
 msgid "Execution completed successfully"
-msgstr "실행 성공"
+msgstr "실행에 성공하였습니다."
 
 msgid "No compilation needed"
-msgstr "컴파일 불필요"
+msgstr "컴파일이 필요하지 않습니다."
 
 msgid "File not submitted"
-msgstr "파일 제출 안함"
-
-msgid "Question received"
-msgstr "질문이 제출되었습니다."
-
-msgid ""
-"Your question has been received, you will be notified when it is answered."
-msgstr "질문이 제출되었습니다. 대답이 완료되면 통지될 것입니다."
-
-#, python-format
-msgid ""
-"You have reached the maximum limit of at most %d submissions among all tasks."
-msgstr "총 %d번 이상 제출할 수 없습니다."
-
-#, python-format
-msgid ""
-"You have reached the maximum limit of at most %d submissions on this task."
-msgstr "이 문제에 %d번 이상 제출할 수 없습니다."
-
-msgid "Too many submissions!"
-msgstr "제출 횟수가 너무 많습니다!"
-
-#, python-format
-msgid ""
-"Among all tasks, you can submit again after %d seconds from last submission."
-msgstr ""
-"모든 문제에 대해, 가장 최근 제출시간으로부터 %d초 후에 다시 제출이 가능합니"
-"다."
-
-#, python-format
-msgid ""
-"For this task, you can submit again after %d seconds from last submission."
-msgstr ""
-"이 문제에 대해, 가장 최근의 질문 제출시간으로부터 %d초 후에 다시 제출이 가능"
-"합니다."
-
-msgid "Submissions too frequent!"
-msgstr "제출을 너무 자주하셨습니다!"
-
-msgid "Invalid submission format!"
-msgstr "제출 형식에 맞지 않습니다!"
-
-msgid "Please select the correct files."
-msgstr "올바른 파일을 선택하십시오."
-
-msgid "Invalid archive format!"
-msgstr "문서 형식에 맞지 않습니다!"
-
-msgid "The submitted archive could not be opened."
-msgstr "제출된 문서가 열리지 않습니다."
-
-msgid "Cannot recognize submission's language."
-msgstr "가능한 확장자들: c, cc, cpp (대소문자도 확인해야 합니다)"
-
-msgid "All sources must be in the same language."
-msgstr "모든 소스들은 동일한 프로그래밍 언어를 사용하여야 합니다."
-
-#, python-format
-msgid "Language %s not allowed in this contest."
-msgstr "%s 언어는 이 콘테스트에서 사용할 수 없습니다."
-
-msgid "Invalid submission!"
-msgstr "유효하지 않은 제출입니다."
-
-msgid "Submission too big!"
-msgstr "제출된 파일이 가능한 용량 제한을 초과하였습니다."
-
-#, python-format
-msgid "Each source file must be at most %d bytes long."
-msgstr "모든 소스 파일의 크기는 %d 바이트를 초과할 수 없습니다."
-
-msgid "Submission storage failed!"
-msgstr "제출된 파일의 저장이 실패하였습니다."
-
-msgid "Please try again."
-msgstr "다시 시도해주십시오."
-
-msgid "Submission received"
-msgstr "제출 완료"
-
-msgid "Your submission has been received and is currently being evaluated."
-msgstr "제출이 완료되었습니다. 지금 채점 중입니다."
-
-msgid "Token request discarded"
-msgstr "토큰 사용 실패"
-
-msgid "Your request has been discarded because you have no tokens available."
-msgstr "더 이상 남은 토큰이 없어서 토큰 사용이 실패하였습니다."
-
-msgid ""
-"Your request has been discarded because you already used a token on that "
-"submission."
-msgstr ""
-"이미 해당 제출에 대해 토큰을 사용했기 때문에 토큰 사용이 실패하였습니다."
-
-msgid "Token request received"
-msgstr "토큰 사용 성공"
-
-msgid "Your request has been received and applied to the submission."
-msgstr "토큰이 성공적으로 사용되어 제출 결과를 확인할 수 있습니다."
-
-msgid "Compiling..."
-msgstr "컴파일 중..."
-
-msgid "details"
-msgstr "세부 사항"
-
-msgid "Evaluating..."
-msgstr "평가 중..."
-
-msgid "Scoring..."
-msgstr "채점 중..."
-
-msgid "Evaluated"
-msgstr "평가를 완료하였습니다."
-
-#, python-format
-msgid "You have reached the maximum limit of at most %d tests among all tasks."
-msgstr "총 %d번 이상 테스트 할 수 없습니다."
-
-#, python-format
-msgid "You have reached the maximum limit of at most %d tests on this task."
-msgstr "이 문제에 %d번 이상 제출할 수 없습니다."
-
-msgid "Too many tests!"
-msgstr "테스트 횟수가 너무 많습니다!"
-
-#, python-format
-msgid "Among all tasks, you can test again after %d seconds from last test."
-msgstr ""
-"모든 문제에 대해 가장 최근 제출 시간으로부터 %d초 후에 다시 테스트가 가능합니"
-"다."
-
-#, python-format
-msgid "For this task, you can test again after %d seconds from last test."
-msgstr ""
-"이 문제에 대해 가장 최근 제출 시간으로부터 %d초 후에 다시 제출이 가능합니다."
-
-msgid "Tests too frequent!"
-msgstr "테스트를 너무 자주 하셨습니다!"
-
-msgid "Invalid test format!"
-msgstr "테스트 형식에 맞지 않습니다!"
-
-msgid "Cannot recognize test's language."
-msgstr "가능한 확장자들: c, cc, cpp (대소문자도 확인해야 합니다)"
-
-msgid "Invalid test!"
-msgstr "유효하지 않은 테스트입니다."
-
-msgid "Test too big!"
-msgstr "테스트 파일이 가능한 용량을 초과하였습니다."
-
-msgid "Input too big!"
-msgstr "입력 파일이 가능한 용량을 초과하였습니다."
-
-#, python-format
-msgid "The input file must be at most %d bytes long."
-msgstr "입력 파일이 최소 %d 바이트 이상 되어야 합니다."
-
-msgid "Test storage failed!"
-msgstr "테스트 저장 실패!"
-
-msgid "Test received"
-msgstr "테스트 제출 성공"
-
-msgid "Your test has been received and is currently being executed."
-msgstr "테스트가 제출되었습니다. 현재 실행 중에 있습니다."
-
-msgid "Executing..."
-msgstr "실행 중..."
-
-msgid "Executed"
-msgstr "실행 완료"
-
-#, python-format
-msgid "%(seconds)0.3f s"
-msgstr "%(seconds)0.3f 초"
-
-msgid "Too many print jobs!"
-msgstr "프린트 횟수가 너무 많습니다!"
-
-#, python-format
-msgid "You have reached the maximum limit of at most %d print jobs."
-msgstr "%d번의 프린트 제한 횟수에 도달했습니다."
-
-msgid "Invalid format!"
-msgstr "테스트 형식에 맞지 않습니다!"
-
-msgid "File too big!"
-msgstr "을테스트 파일이 가능한 용량을 초과하였습니다."
-
-#, python-format
-msgid "Each file must be at most %d bytes long."
-msgstr "모든 소스 파일의 크기는 %d 바이트를 초과할 수 없습니다."
-
-msgid "Print job storage failed!"
-msgstr "프린트 요청 저장 실패!"
-
-msgid "Print job received"
-msgstr "프린트 요청 수신됨"
-
-msgid "Your print job has been received."
-msgstr "프린트 요청이 수신되었습니다."
+msgstr "파일을 제출하지 않았습니다."
 
 msgid "%Y-%m-%d"
 msgstr "%Y-%m-%d"
@@ -387,6 +198,9 @@ msgstr "%Y-%m-%d %H:%M:%S"
 
 msgid "loading..."
 msgstr "로딩 중..."
+
+msgid "unknown"
+msgstr "알 수 없음"
 
 #, python-format
 msgid "%d second"
@@ -511,9 +325,219 @@ msgstr[1] "총합 최대 %(max_number)d개의 %(type_pl)s를 이용할 수 있�
 msgid "You have no limitations on how you use them."
 msgstr "이들을 사용하는 데에는 제약이 없습니다."
 
+msgid "Question too big!"
+msgstr "질문이 매우 큽니다!"
+
+msgid "You have reached the question length limit."
+msgstr "질문이 제한된 글자 수를 초과하였습니다."
+
+msgid "Question received"
+msgstr "질문이 도착하였습니다."
+
+msgid ""
+"Your question has been received, you will be notified when it is answered."
+msgstr "질문이 제출되었고, 답변이 도착하면 통지될 것입니다."
+
+msgid "Too many print jobs!"
+msgstr "프린트 횟수가 너무 많습니다!"
+
+#, python-format
+msgid "You have reached the maximum limit of at most %d print jobs."
+msgstr "%d번 이상 프린트할 수 없습니다."
+
+msgid "Invalid format!"
+msgstr "형식에 맞지 않습니다!"
+
+msgid "Please select the correct files."
+msgstr "올바른 파일을 선택하십시오."
+
+msgid "File too big!"
+msgstr "파일이 가능한 용량을 초과하였습니다."
+
+#, python-format
+msgid "Each file must be at most %d bytes long."
+msgstr "모든 소스 파일의 크기는 %d 바이트를 초과할 수 없습니다."
+
+msgid "Print job storage failed!"
+msgstr "프린트 요청 저장 실패!"
+
+msgid "Please try again."
+msgstr "다시 시도해주십시오."
+
+msgid "Print job received"
+msgstr "프린트 요청이 수신되었습니다."
+
+msgid "Your print job has been received."
+msgstr "프린트 요청이 수신되었습니다."
+
+msgid "Compiling..."
+msgstr "컴파일 중..."
+
+msgid "details"
+msgstr "세부 사항"
+
+msgid "Evaluating..."
+msgstr "평가 중..."
+
+msgid "Scoring..."
+msgstr "채점 중..."
+
+msgid "Evaluated"
+msgstr "평가가 완료되었습니다."
+
+msgid "Token request discarded"
+msgstr "토큰 사용에 실패하였습니다."
+
+msgid "Your request has been discarded because you have no tokens available."
+msgstr "더 이상 남은 토큰이 없어서 토큰 사용에 실패하였습니다."
+
+msgid ""
+"Your request has been discarded because you already used a token on that "
+"submission."
+msgstr ""
+"이미 해당 제출에 대해 토큰을 사용했기 때문에 토큰 사용에 실패하였습니다."
+
+msgid "Token request received"
+msgstr "토큰 사용에 성공하였습니다."
+
+msgid "Your request has been received and applied to the submission."
+msgstr "토큰이 성공적으로 사용되어 제출 결과를 확인할 수 있습니다."
+
+#, python-format
+msgid ""
+"You have reached the maximum limit of at most %d submissions among all tasks."
+msgstr "모든 문제를 통틀어 총 %d번 이상 제출할 수 없습니다."
+
+#, python-format
+msgid ""
+"You have reached the maximum limit of at most %d submissions on this task."
+msgstr "이 문제에 %d번 이상 제출할 수 없습니다."
+
+msgid "Too many submissions!"
+msgstr "제출 횟수가 너무 많습니다!"
+
+#, python-format
+msgid ""
+"Among all tasks, you can submit again after %d seconds from last submission."
+msgstr ""
+"모든 문제에 대해, 가장 최근 제출시간으로부터 %d초 후에 다시 제출이 가능합니"
+"다."
+
+#, python-format
+msgid ""
+"For this task, you can submit again after %d seconds from last submission."
+msgstr ""
+"이 문제에 대해, 가장 최근의 질문 제출시간으로부터 %d초 후에 다시 제출이 가능"
+"합니다."
+
+msgid "Submissions too frequent!"
+msgstr "제출을 너무 자주하였습니다!"
+
+msgid "Invalid submission format!"
+msgstr "제출 형식에 맞지 않습니다!"
+
+msgid "Invalid archive format!"
+msgstr "문서 형식에 맞지 않습니다!"
+
+msgid "The submitted archive could not be opened."
+msgstr "제출된 문서가 열리지 않습니다."
+
+msgid "Cannot recognize the submission language."
+msgstr "제출 언어를 확인할 수 없습니다."
+
+#, python-format
+msgid "Language %s not allowed in this contest."
+msgstr "%s 언어는 이 콘테스트에서 사용할 수 없습니다."
+
+msgid "Invalid submission!"
+msgstr "유효하지 않은 제출입니다!"
+
+msgid "Submission too big!"
+msgstr "제출된 파일이 가능한 용량 제한을 초과하였습니다!"
+
+#, python-format
+msgid "Each source file must be at most %d bytes long."
+msgstr "모든 소스 파일의 크기는 %d 바이트를 초과할 수 없습니다."
+
+msgid "Submission storage failed!"
+msgstr "제출된 파일의 저장이 실패하였습니다."
+
+msgid "Submission received"
+msgstr "제출이 완료되었습니다."
+
+msgid "Your submission has been received and is currently being evaluated."
+msgstr "제출이 완료되어, 지금 채점 중입니다."
+
+#, python-format
+msgid "You have reached the maximum limit of at most %d tests among all tasks."
+msgstr "모든 문제를 통틀어 총 %d번 이상 테스트할 수 없습니다."
+
+#, python-format
+msgid "You have reached the maximum limit of at most %d tests on this task."
+msgstr "이 문제에 %d번 이상 테스트할 수 없습니다."
+
+msgid "Too many tests!"
+msgstr "테스트 횟수가 너무 많습니다!"
+
+#, python-format
+msgid "Among all tasks, you can test again after %d seconds from last test."
+msgstr ""
+"모든 문제를 통틀어 가장 최근 테스트 시간으로부터 %d초 후에 다시 테스트가 가능"
+"합니다."
+
+#, python-format
+msgid "For this task, you can test again after %d seconds from last test."
+msgstr ""
+"이 문제에 대해 가장 최근 테스트 시간으로부터 %d초 후에 다시 테스트가 가능합니"
+"다."
+
+msgid "Tests too frequent!"
+msgstr "테스트를 너무 자주 하셨습니다!"
+
+msgid "Invalid test format!"
+msgstr "테스트 형식에 맞지 않습니다!"
+
+msgid "Cannot recognize the user test language."
+msgstr "사용자 테스트 언어를 확인할 수 없습니다."
+
+msgid "Invalid test!"
+msgstr "유효하지 않은 테스트입니다!"
+
+msgid "Test too big!"
+msgstr "테스트 파일이 가능한 용량을 초과하였습니다!"
+
+msgid "Input too big!"
+msgstr "입력 파일이 가능한 용량을 초과하였습니다!"
+
+#, python-format
+msgid "The input file must be at most %d bytes long."
+msgstr "입력 파일이 최소 %d 바이트 이상 되어야 합니다."
+
+msgid "Test storage failed!"
+msgstr "테스트 저장에 실패하였습니다!"
+
+msgid "Test received"
+msgstr "테스트가 제출되었습니다."
+
+msgid "Your test has been received and is currently being executed."
+msgstr "테스트가 제출되었고, 현재 실행 중에 있습니다."
+
+msgid "Executing..."
+msgstr "실행 중..."
+
+msgid "Executed"
+msgstr "실행 완료"
+
+#, python-format
+msgid "%(seconds)0.3f s"
+msgstr "%(seconds)0.3f 초"
+
 #, python-format
 msgid "Automatic (%s)"
 msgstr "자동 (%s)"
+
+msgid "Logout"
+msgstr "로그아웃"
 
 #, python-format
 msgid ""
@@ -522,9 +546,6 @@ msgid ""
 msgstr ""
 "로그인 상태 <strong>%(first_name)s %(last_name)s</strong> "
 "<em>(%(username)s)</em>"
-
-msgid "Logout"
-msgstr "로그아웃"
 
 msgid "Failed to log in."
 msgstr "로그인 실패"
@@ -621,7 +642,7 @@ msgid "Ask question"
 msgstr "질문 보내기"
 
 msgid "no answer yet"
-msgstr "아직 대답이 없습니다."
+msgstr "아직 답변이 없습니다."
 
 msgid "Messages"
 msgstr "메시지"
@@ -632,8 +653,13 @@ msgstr "프로그래밍 언어 및 라이브러리"
 msgid "Standard Template Library"
 msgstr "Standard Template Library"
 
+msgid ""
+"The main Java class of the solution should have exactly the same name as the "
+"task."
+msgstr "main 함수가 담긴 클래스 이름은 문제의 이름과 동일해야 합니다."
+
 msgid "Submission details for compilation"
-msgstr "제출 세부 사항"
+msgstr "컴파일 세부 사항"
 
 msgid "Message"
 msgstr "메시지"
@@ -642,7 +668,7 @@ msgid "Explanation"
 msgstr "설명"
 
 msgid "Submission details for evaluation"
-msgstr "제출 세부 사항"
+msgstr "평가 세부 사항"
 
 #, python-format
 msgid "Error %d"
@@ -1066,3 +1092,7 @@ msgstr "테스트 세부 사항"
 
 msgid "Evaluation outcome"
 msgstr "실행 결과"
+
+#~ msgid "All sources must be in the same language."
+#~ msgstr "모든 소스들은 동일한 프로그래밍 언어를 사용하여야 합니다."
+

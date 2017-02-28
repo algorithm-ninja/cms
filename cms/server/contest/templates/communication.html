@@ -29,16 +29,22 @@
 
 
 
-{% if config.allow_questions %}
+{% if questions_enabled %}
 
 <h2>{{ _("Questions") }}</h2>
 <div class="well question_submit">
     <form class="form-horizontal" action="{{ url_root }}/question" method="POST">
+        {% module xsrf_form_html() %}
         <fieldset>
             <div class="control-group">
                 <label class="control-label" for="input_subject">{{ _("Subject") }}</label>
                 <div class="controls">
-                    <input type="text" class="input-xlarge" name="question_subject" id="input_subject" maxlength="250"/>
+                    <input type="text" name="question_subject" id="input_subject" class="input-xlarge" maxlength="50" list="task_names_list" autocomplete="off">
+                    <datalist id="task_names_list">
+                        {% for task in contest.tasks %}
+                        <option value="{{ task.name }}">
+                        {% end %}
+                    </datalist>
                 </div>
             </div>
             <div class="control-group">
@@ -49,8 +55,8 @@
             </div>
             <div class="control-group">
                 <div class="controls">
-                    <button type="submit" class="btn btn-primary" type="submit">{{ _("Ask question") }}</button>
-                    <button type="reset" class="btn" type="submit">{{ _("Reset") }}</button>
+                    <button type="submit" class="btn btn-primary">{{ _("Ask question") }}</button>
+                    <button type="reset" class="btn">{{ _("Reset") }}</button>
                 </div>
             </div>
         </fieldset>

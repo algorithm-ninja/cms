@@ -5,7 +5,8 @@
 # Copyright © 2010-2012 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
 # Copyright © 2010-2013 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
-# Copyright © 2013-2015 Luca Wehrstedt <luca.wehrstedt@gmail.com>
+# Copyright © 2013-2016 Luca Wehrstedt <luca.wehrstedt@gmail.com>
+# Copyright © 2015 wafrelka <wafrelka@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -72,6 +73,31 @@ class ScoreType(object):
         self.max_score, self.max_public_score, self.ranking_headers = \
             self.max_scores()
 
+    @staticmethod
+    def format_score(score, max_score, unused_score_details,
+                     score_precision, unused_translator=None):
+        """Produce the string of the score that is shown in CWS.
+
+        In the submission table in the task page of CWS the global
+        score of the submission is shown (the sum of all subtask and
+        testcases). This method is in charge of producing the actual
+        text that is shown there. It can be overridden to provide a
+        custom message (e.g. "Accepted"/"Rejected").
+
+        score (float): the global score of the submission.
+        max_score (float): the maximum score that can be achieved.
+        unused_score_details (string): the opaque data structure that
+            the ScoreType produced for the submission when scoring it.
+        score_precision (int): the maximum number of digits of the
+            fractional digits to show.
+        unused_translator (function): a function to localize text.
+
+        return (string): the message to show.
+
+        """
+        return "%g / %g" % (round(score, score_precision),
+                            round(max_score, score_precision))
+
     def get_html_details(self, score_details, translator=None):
         """Return an HTML string representing the score details of a
         submission.
@@ -118,10 +144,11 @@ class ScoreType(object):
             result of which we want the score
 
         returns (float, str, float, str, [str]): respectively: the
-            score, the HTML string with additional information (e.g.
-            testcases' and subtasks' score), and the same information
-            from the point of view of a user that did not play a
-            token, the list of strings to send to RWS.
+            score, the opaque data with additional information (e.g.
+            testcases' and subtasks' score) that will be converted to
+            HTML by get_html_details, and the same information from the
+            point of view of a user that did not play a token, the list
+            of strings to send to RWS.
 
         """
         logger.error("Unimplemented method compute_score.")
@@ -164,6 +191,7 @@ class ScoreTypeGroup(ScoreTypeAlone):
     TEMPLATE = """\
 {% from cms.grading import format_status_text %}
 {% from cms.server import format_size %}
+{% set idx = 0 %}
 {% for st in details %}
     {% if "score" in st and "max_score" in st %}
         {% if st["score"] >= st["max_score"] %}
@@ -182,11 +210,11 @@ class ScoreTypeGroup(ScoreTypeAlone):
         </span>
     {% if "score" in st and "max_score" in st %}
         <span class="score">
-            {{ '%g' % round(st["score"], 2) }} / {{ st["max_score"] }}
+            ({{ '%g' % round(st["score"], 2) }} / {{ st["max_score"] }})
         </span>
     {% else %}
         <span class="score">
-            {{ _("N/A") }}
+            ({{ _("N/A") }})
         </span>
     {% end %}
     </div>
@@ -194,14 +222,16 @@ class ScoreTypeGroup(ScoreTypeAlone):
         <table class="testcase-list">
             <thead>
                 <tr>
-                    <th>{{ _("Outcome") }}</th>
-                    <th>{{ _("Details") }}</th>
-                    <th>{{ _("Execution time") }}</th>
-                    <th>{{ _("Memory used") }}</th>
+                    <th class="idx">{{ _("#") }}</th>
+                    <th class="outcome">{{ _("Outcome") }}</th>
+                    <th class="details">{{ _("Details") }}</th>
+                    <th class="execution-time">{{ _("Execution time") }}</th>
+                    <th class="memory-used">{{ _("Memory used") }}</th>
                 </tr>
             </thead>
             <tbody>
     {% for tc in st["testcases"] %}
+        {% set idx = idx + 1 %}
         {% if "outcome" in tc and "text" in tc %}
             {% if tc["outcome"] == "Correct" %}
                 <tr class="correct">
@@ -210,25 +240,29 @@ class ScoreTypeGroup(ScoreTypeAlone):
             {% else %}
                 <tr class="partiallycorrect">
             {% end %}
-                    <td>{{ _(tc["outcome"]) }}</td>
-                    <td>{{ format_status_text(tc["text"], _) }}</td>
-                    <td>
+                    <td class="idx">{{ idx }}</td>
+                    <td class="outcome">{{ _(tc["outcome"]) }}</td>
+                    <td class="details">
+                      {{ format_status_text(tc["text"], _) }}
+                    </td>
+                    <td class="execution-time">
             {% if "time" in tc and tc["time"] is not None %}
                         {{ _("%(seconds)0.3f s") % {'seconds': tc["time"]} }}
             {% else %}
                         {{ _("N/A") }}
             {% end %}
                     </td>
-                    <td>
+                    <td class="memory-used">
             {% if "memory" in tc and tc["memory"] is not None %}
                         {{ format_size(tc["memory"]) }}
             {% else %}
                         {{ _("N/A") }}
             {% end %}
                     </td>
+                </tr>
         {% else %}
                 <tr class="undefined">
-                    <td colspan="4">
+                    <td colspan="5">
                         {{ _("N/A") }}
                     </td>
                 </tr>
@@ -308,8 +342,7 @@ class ScoreTypeGroup(ScoreTypeAlone):
         """See ScoreType.compute_score."""
         # Actually, this means it didn't even compile!
         if not submission_result.evaluated():
-            return 0.0, "[]", 0.0, "[]", \
-                json.dumps(["%lg" % 0.0 for _ in self.parameters])
+            return 0.0, "[]", 0.0, "[]", ["%lg" % 0.0 for _ in self.parameters]
 
         targets = self.retrieve_target_testcases()
         evaluations = dict((ev.codename, ev)
@@ -367,7 +400,7 @@ class ScoreTypeGroup(ScoreTypeAlone):
 
         return score, json.dumps(subtasks), \
             public_score, json.dumps(public_subtasks), \
-            json.dumps(ranking_details)
+            ranking_details
 
     def get_public_outcome(self, unused_outcome, unused_parameter):
         """Return a public outcome from an outcome.

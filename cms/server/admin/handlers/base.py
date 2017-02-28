@@ -3,11 +3,13 @@
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2013 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2015 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2010-2016 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
-# Copyright © 2012-2014 Luca Wehrstedt <luca.wehrstedt@gmail.com>
+# Copyright © 2012-2016 Luca Wehrstedt <luca.wehrstedt@gmail.com>
 # Copyright © 2014 Artem Iglikov <artem.iglikov@gmail.com>
 # Copyright © 2014 Fabian Gundlach <320pointsguy@gmail.com>
+# Copyright © 2016 Myungwoo Chun <mc.tamaki@gmail.com>
+# Copyright © 2016 Peyman Jabbarzade Ganje <peyman.jabarzade@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -44,10 +46,10 @@ from sqlalchemy.orm import subqueryload
 
 from cms import __version__
 from cms.db import Admin, Contest, Participation, Question, \
-    Submission, SubmissionFormatElement, SubmissionResult, Task, Team, User
+    Submission, SubmissionFormatElement, SubmissionResult, Task, Team, User, \
+    UserTest
 from cms.grading.scoretypes import get_score_type_class
 from cms.grading.tasktypes import get_task_type_class
-from cms.io import WebService
 from cms.server import CommonRequestHandler, file_handler_gen, get_url_root
 from cmscommon.datetime import make_datetime
 
@@ -118,18 +120,19 @@ def parse_datetime(value):
         raise ValueError("Can't cast %s to datetime." % value)
 
 
-def parse_ip_address_or_subnet(value):
-    """Validate an IP address or subnet."""
-    address, sep, subnet = value.partition("/")
-    if sep != "":
-        subnet = int(subnet)
-        assert 0 <= subnet < 32
-    fields = address.split(".")
-    assert len(fields) == 4
-    for field in fields:
-        num = int(field)
-        assert 0 <= num < 256
-    return value
+def parse_ip_address_or_subnet(ip_list):
+    """Validate a comma-separated list of IP addresses or subnets."""
+    for value in ip_list.split(","):
+        address, sep, subnet = value.partition("/")
+        if sep != "":
+            subnet = int(subnet)
+            assert 0 <= subnet < 32
+        fields = address.split(".")
+        assert len(fields) == 4
+        for field in fields:
+            num = int(field)
+            assert 0 <= num < 256
+    return ip_list
 
 
 def require_permission(permission="authenticated", self_allowed=False):
@@ -165,7 +168,7 @@ def require_permission(permission="authenticated", self_allowed=False):
 
             user = self.current_user
             permission_key = "permission_%s" % permission
-            if user.permission_all or user.__getattribute__(permission_key):
+            if user.permission_all or getattr(user, permission_key):
                 return func(self, *args, **kwargs)
             else:
                 if self_allowed and len(args) > 0 and int(args[0]) == user.id:
@@ -220,10 +223,8 @@ class BaseHandler(CommonRequestHandler):
             the Admin object, otherwise None.
 
         """
-        admin_id = self.request.headers.get(
-            WebService.AUTHENTICATED_USER_HEADER, None)
+        admin_id = self.service.auth_handler.admin_id
         if admin_id is None:
-            self.set_cookie_action("delete")
             return None
 
         # Load admin.
@@ -232,23 +233,14 @@ class BaseHandler(CommonRequestHandler):
             .filter(Admin.enabled.is_(True))\
             .first()
         if admin is None:
-            self.set_cookie_action("delete")
+            self.service.auth_handler.clear()
             return None
 
         # Maybe refresh the cookie.
         if self.refresh_cookie:
-            self.set_cookie_action("refresh")
+            self.service.auth_handler.refresh()
 
         return admin
-
-    def set_cookie_action(self, action):
-        """Set the header to inform the upper WSGI layer to do the specified
-        action on the login cookie.
-
-        action (unicode): the value of the cookie.
-
-        """
-        self.set_header(WebService.AUTHENTICATED_COOKIE_HEADER, action)
 
     def safe_get_item(self, cls, ident, session=None):
         """Get item from database of class cls and id ident, using
@@ -319,7 +311,8 @@ class BaseHandler(CommonRequestHandler):
         that. So far I'm leaving it to minimize changes.
 
         """
-        self.sql_session.close()
+        if self.sql_session:  # Request was stopped early, no session to close.
+            self.sql_session.close()
         try:
             tornado.web.RequestHandler.finish(self, *args, **kwds)
         except IOError:
@@ -506,8 +499,8 @@ class BaseHandler(CommonRequestHandler):
     def render_params_for_submissions(self, query, page, page_size=50):
         """Add data about the requested submissions to r_params.
 
-        submission_query (sqlalchemy.orm.query.Query): the query
-            giving back all interesting submissions.
+        query (sqlalchemy.orm.query.Query): the query giving back all
+            interesting submissions.
         page (int): the index of the page to display.
         page_size(int): the number of submissions per page.
 
@@ -538,12 +531,63 @@ class BaseHandler(CommonRequestHandler):
         self.r_params["submission_pages"] = \
             (count + page_size - 1) // page_size
 
+    def render_params_for_user_tests(self, query, page, page_size=50):
+        """Add data about the requested user tests to r_params.
+
+        query (sqlalchemy.orm.query.Query): the query giving back all
+            interesting user tests.
+        page (int): the index of the page to display.
+        page_size(int): the number of submissions per page.
+
+        """
+        query = query\
+            .options(subqueryload(UserTest.task))\
+            .options(subqueryload(UserTest.participation))\
+            .options(subqueryload(UserTest.files))\
+            .options(subqueryload(UserTest.results))\
+            .order_by(UserTest.timestamp.desc())
+
+        offset = page * page_size
+        count = query.count()
+
+        if self.r_params is None:
+            self.r_params = self.render_params()
+
+        self.r_params["user_test_count"] = count
+        self.r_params["user_tests"] = \
+            query.slice(offset, offset + page_size).all()
+        self.r_params["user_test_page"] = page
+        self.r_params["user_test_pages"] = \
+            (count + page_size - 1) // page_size
+
+    def render_params_for_remove_confirmation(self, query):
+        count = query.count()
+
+        if self.r_params is None:
+            self.r_params = self.render_params()
+        self.r_params["submission_count"] = count
+
 
 FileHandler = file_handler_gen(BaseHandler)
 
 
-def SimpleHandler(page, authenticated=True):
-    if authenticated:
+class FileFromDigestHandler(FileHandler):
+    """Return the file, using the given name, and as plain text."""
+    @require_permission(BaseHandler.AUTHENTICATED)
+    def get(self, digest, filename):
+        # TODO: Accept a MIME type
+        self.sql_session.close()
+        self.fetch(digest, "text/plain", filename)
+
+
+def SimpleHandler(page, authenticated=True, permission_all=False):
+    if permission_all:
+        class Cls(BaseHandler):
+            @require_permission(BaseHandler.PERMISSION_ALL)
+            def get(self):
+                self.r_params = self.render_params()
+                self.render(page, **self.r_params)
+    elif authenticated:
         class Cls(BaseHandler):
             @require_permission(BaseHandler.AUTHENTICATED)
             def get(self):

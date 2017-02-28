@@ -8,6 +8,8 @@
 # Copyright © 2012-2014 Luca Wehrstedt <luca.wehrstedt@gmail.com>
 # Copyright © 2014 Artem Iglikov <artem.iglikov@gmail.com>
 # Copyright © 2014 Fabian Gundlach <320pointsguy@gmail.com>
+# Copyright © 2016 Myungwoo Chun <mc.tamaki@gmail.com>
+# Copyright © 2016 Peyman Jabbarzade Ganje <peyman.jabarzade@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -32,18 +34,23 @@ from __future__ import unicode_literals
 
 import json
 import logging
+import os
 import re
+import shutil
+import tempfile
 import zipfile
 
 from StringIO import StringIO
 import tornado.web
 
+from cms import config
 from cms.db import Dataset, Manager, Message, Participation, \
     Session, Submission, Task, Testcase
 from cms.grading import compute_changes_for_dataset
 from cmscommon.datetime import make_datetime
+from cmscommon.importers import import_testcases_from_zipfile
 
-from .base import BaseHandler, require_permission
+from .base import BaseHandler, FileHandler, require_permission
 
 
 logger = logging.getLogger(__name__)
@@ -315,7 +322,7 @@ class ToggleAutojudgeDatasetHandler(BaseHandler):
 
     """
     @require_permission(BaseHandler.PERMISSION_ALL)
-    def get(self, dataset_id):
+    def post(self, dataset_id):
         dataset = self.safe_get_item(Dataset, dataset_id)
 
         dataset.autojudge = not dataset.autojudge
@@ -330,7 +337,7 @@ class ToggleAutojudgeDatasetHandler(BaseHandler):
             self.application.service\
                 .scoring_service.search_operations_not_done()
 
-        self.redirect("/task/%s" % dataset.task_id)
+        self.write("./%d" % dataset.task_id)
 
 
 class AddManagerHandler(BaseHandler):
@@ -388,7 +395,7 @@ class DeleteManagerHandler(BaseHandler):
 
     """
     @require_permission(BaseHandler.PERMISSION_ALL)
-    def get(self, dataset_id, manager_id):
+    def delete(self, dataset_id, manager_id):
         manager = self.safe_get_item(Manager, manager_id)
         dataset = self.safe_get_item(Dataset, dataset_id)
 
@@ -396,12 +403,12 @@ class DeleteManagerHandler(BaseHandler):
         if manager.dataset is not dataset:
             raise tornado.web.HTTPError(404)
 
-        task = manager.dataset.task
+        task_id = dataset.task_id
 
         self.sql_session.delete(manager)
 
         self.try_commit()
-        self.redirect("/task/%s" % task.id)
+        self.write("./%d" % task_id)
 
 
 class AddTestcaseHandler(BaseHandler):
@@ -511,123 +518,28 @@ class AddTestcasesHandler(BaseHandler):
         overwrite = self.get_argument("overwrite", None) is not None
 
         # Get input/output file names templates, or use default ones.
-        input_template = self.get_argument("input_template", None)
-        if not input_template:
-            input_template = "input.*"
-        output_template = self.get_argument("output_template", None)
-        if not output_template:
-            output_template = "output.*"
+        input_template = self.get_argument("input_template", "input.*")
+        output_template = self.get_argument("output_template", "output.*")
         input_re = re.compile(re.escape(input_template).replace("\\*",
                               "(.*)") + "$")
         output_re = re.compile(re.escape(output_template).replace("\\*",
                                "(.*)") + "$")
 
-        task_name = task.name
-        self.sql_session.close()
-
         fp = StringIO(archive["body"])
         try:
-            with zipfile.ZipFile(fp, "r") as archive_zfp:
-                tests = dict()
-                # Match input/output file names to testcases' codenames.
-                for filename in archive_zfp.namelist():
-                    match = input_re.match(filename)
-                    if match:
-                        codename = match.group(1)
-                        if codename not in tests:
-                            tests[codename] = [None, None]
-                        tests[codename][0] = filename
-                    else:
-                        match = output_re.match(filename)
-                        if match:
-                            codename = match.group(1)
-                            if codename not in tests:
-                                tests[codename] = [None, None]
-                            tests[codename][1] = filename
-
-                skipped_tc = []
-                overwritten_tc = []
-                added_tc = []
-                for codename, testdata in tests.iteritems():
-                    # If input or output file isn't found, skip it.
-                    if not testdata[0] or not testdata[1]:
-                        continue
-                    self.sql_session = Session()
-
-                    # Check, whether current testcase already exists.
-                    dataset = self.safe_get_item(Dataset, dataset_id)
-                    task = dataset.task
-                    if codename in dataset.testcases:
-                        # If we are allowed, remove existing testcase.
-                        # If not - skip this testcase.
-                        if overwrite:
-                            testcase = dataset.testcases[codename]
-                            self.sql_session.delete(testcase)
-
-                            if not self.try_commit():
-                                skipped_tc.append(codename)
-                                continue
-                            overwritten_tc.append(codename)
-                        else:
-                            skipped_tc.append(codename)
-                            continue
-
-                    # Add current testcase.
-                    try:
-                        input_ = archive_zfp.read(testdata[0])
-                        output = archive_zfp.read(testdata[1])
-                    except Exception as error:
-                        self.application.service.add_notification(
-                            make_datetime(),
-                            "Reading testcase %s failed" % codename,
-                            repr(error))
-                        self.redirect(fallback_page)
-                        return
-                    try:
-                        input_digest = self.application.service\
-                            .file_cacher.put_file_content(
-                                input_,
-                                "Testcase input for task %s" % task_name)
-                        output_digest = self.application.service\
-                            .file_cacher.put_file_content(
-                                output,
-                                "Testcase output for task %s" % task_name)
-                    except Exception as error:
-                        self.application.service.add_notification(
-                            make_datetime(),
-                            "Testcase storage failed",
-                            repr(error))
-                        self.redirect(fallback_page)
-                        return
-                    testcase = Testcase(codename, public, input_digest,
-                                        output_digest, dataset=dataset)
-                    self.sql_session.add(testcase)
-
-                    if not self.try_commit():
-                        self.application.service.add_notification(
-                            make_datetime(),
-                            "Couldn't add test %s" % codename,
-                            "")
-                        self.redirect(fallback_page)
-                        return
-                    if codename not in overwritten_tc:
-                        added_tc.append(codename)
-        except zipfile.BadZipfile:
+            successful_subject, successful_text = \
+                import_testcases_from_zipfile(
+                    self.sql_session,
+                    self.application.service.file_cacher, dataset,
+                    fp, input_re, output_re, overwrite, public)
+        except Exception as error:
             self.application.service.add_notification(
-                make_datetime(),
-                "The selected file is not a zip file.",
-                "Please select a valid zip file.")
+                make_datetime(), str(error), repr(error))
             self.redirect(fallback_page)
             return
 
         self.application.service.add_notification(
-            make_datetime(),
-            "Successfully added %d and overwritten %d testcase(s)" %
-            (len(added_tc), len(overwritten_tc)),
-            "Added: %s; overwritten: %s; skipped: %s" %
-            (", ".join(added_tc) if added_tc else "none",
-             ", ".join(overwritten_tc) if overwritten_tc else "none",
-             ", ".join(skipped_tc) if skipped_tc else "none"))
+            make_datetime(), successful_subject, successful_text)
         self.application.service.proxy_service.reinitialize()
         self.redirect("/task/%s" % task.id)
 
@@ -637,7 +549,7 @@ class DeleteTestcaseHandler(BaseHandler):
 
     """
     @require_permission(BaseHandler.PERMISSION_ALL)
-    def get(self, dataset_id, testcase_id):
+    def delete(self, dataset_id, testcase_id):
         testcase = self.safe_get_item(Testcase, testcase_id)
         dataset = self.safe_get_item(Dataset, dataset_id)
 
@@ -645,11 +557,71 @@ class DeleteTestcaseHandler(BaseHandler):
         if dataset is not testcase.dataset:
             raise tornado.web.HTTPError(404)
 
-        task = testcase.dataset.task
+        task_id = testcase.dataset.task_id
 
         self.sql_session.delete(testcase)
 
         if self.try_commit():
             # max_score and/or extra_headers might have changed.
             self.application.service.proxy_service.reinitialize()
-        self.redirect("/task/%s" % task.id)
+        self.write("./%d" % task_id)
+
+
+class DownloadTestcasesHandler(FileHandler):
+    """Download all testcases in a zip file.
+
+    """
+    @require_permission(BaseHandler.AUTHENTICATED)
+    def get(self, dataset_id):
+        dataset = self.safe_get_item(Dataset, dataset_id)
+        task = dataset.task
+
+        self.r_params = self.render_params()
+        self.r_params["task"] = task
+        self.r_params["dataset"] = dataset
+        self.render("download_testcases.html", **self.r_params)
+
+    @require_permission(BaseHandler.AUTHENTICATED)
+    def post(self, dataset_id):
+        fallback_page = "/dataset/%s/testcases/download" % dataset_id
+
+        dataset = self.safe_get_item(Dataset, dataset_id)
+
+        # Get zip file name, input/output file names templates,
+        # or use default ones.
+        zip_filename = self.get_argument("zip_filename", "testcases.zip")
+        input_template = self.get_argument("input_template", "input.*")
+        output_template = self.get_argument("output_template", "output.*")
+
+        # Template validations
+        if input_template.count('*') != 1 or output_template.count('*') != 1:
+            self.application.service.add_notification(
+                make_datetime(),
+                "Invalid template format",
+                "You must have exactly one '*' in input/output template.")
+            self.redirect(fallback_page)
+            return
+
+        # Replace input/output template placeholder with the python format.
+        input_template = input_template.strip().replace("*", "%s")
+        output_template = output_template.strip().replace("*", "%s")
+
+        # Create a temp dir to contain the content of the zip file.
+        tempdir = tempfile.mkdtemp(dir=config.temp_dir)
+        zip_path = os.path.join(tempdir, "testcases.zip")
+        with zipfile.ZipFile(zip_path, "w") as zip_file:
+            for testcase in dataset.testcases.itervalues():
+                # Get input, output file path
+                input_path = self.application.service.file_cacher.\
+                    get_file(testcase.input).name
+                output_path = self.application.service.file_cacher.\
+                    get_file(testcase.output).name
+                zip_file.write(
+                    input_path, input_template % testcase.codename)
+                zip_file.write(
+                    output_path, output_template % testcase.codename)
+            zip_file.close()
+
+        self.fetch_from_filesystem(zip_path, "application/zip", zip_filename)
+
+        shutil.rmtree(tempdir)

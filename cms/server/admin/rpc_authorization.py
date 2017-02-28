@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 # Contest Management System - http://cms-dev.github.io/
-# Copyright © 2015 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2015-2017 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2016 Luca Wehrstedt <luca.wehrstedt@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -26,17 +27,12 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from cms.db import Admin, SessionGen
-from cms.io import WebService
-
-
-AUTHENTICATED_USER_HEADER_IN_ENV = "HTTP_" + \
-    WebService.AUTHENTICATED_USER_HEADER.upper().replace('-', '_')
 
 
 RPCS_ALLOWED_FOR_AUTHENTICATED = [
+    ("AdminWebServer", "submissions_status"),
     ("ResourceService", "get_resources"),
     ("EvaluationService", "workers_status"),
-    ("EvaluationService", "submissions_status"),
     ("EvaluationService", "queue_status"),
     ("LogService", "last_messages"),
 ]
@@ -46,7 +42,7 @@ RPCS_ALLOWED_FOR_MESSAGING = RPCS_ALLOWED_FOR_AUTHENTICATED + []
 
 
 RPCS_ALLOWED_FOR_ALL = RPCS_ALLOWED_FOR_MESSAGING + [
-    ("ResourceService", "kill_resources"),
+    ("ResourceService", "kill_service"),
     ("ResourceService", "toggle_autorestart"),
     ("EvaluationService", "enable_worker"),
     ("EvaluationService", "disable_worker"),
@@ -55,22 +51,18 @@ RPCS_ALLOWED_FOR_ALL = RPCS_ALLOWED_FOR_MESSAGING + [
 ]
 
 
-def rpc_authorization_checker(environ):
+def rpc_authorization_checker(admin_id, service, unused_shard, method):
     """Return whether to accept the request.
 
-    environ ({}): WSGI environ object with the request metadata.
+    admin_id (id): the id of the administrator.
+    service (string): name of the service the RPC is for.
+    unused_shard (int): shard of the service the RPC is for.
+    method (string): method of the service the RPC is calling.
 
     return (bool): whether to accept the request or not.
 
     """
-    try:
-        admin_id = int(environ.get(AUTHENTICATED_USER_HEADER_IN_ENV, None))
-        path_info = environ.get("PATH_INFO", "").strip("/").split("/")
-
-        service = path_info[-3]
-        # We don't check on shard = path_info[-2].
-        method = path_info[-1]
-    except (ValueError, TypeError, IndexError):
+    if admin_id is None:
         return False
 
     with SessionGen() as session:

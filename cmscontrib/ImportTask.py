@@ -3,7 +3,7 @@
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2013 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2012 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2010-2016 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
 # Copyright © 2013 Luca Wehrstedt <luca.wehrstedt@gmail.com>
 # Copyright © 2014-2016 William Di Luigi <williamdiluigi@gmail.com>
@@ -42,6 +42,7 @@ gevent.monkey.patch_all()
 import argparse
 import logging
 import os
+import sys
 
 from cms import utf8_decoder
 from cms.db import Contest, SessionGen, Task
@@ -60,8 +61,21 @@ class TaskImporter(BaseImporter):
 
     """
 
-    def __init__(self, path, update, no_statement, contest_id, loader_class):
+    def __init__(self, path, prefix, override_name, update, no_statement,
+                 contest_id, loader_class):
+        """Create the importer object for a task.
+
+        path (string): the path to the file or directory to import.
+        prefix (string): an optional prefix added to the task name.
+        override_name (string): an optional new name for the task.
+        update (bool): if the task already exists, try to update it.
+        no_statement (bool): do not try to import the task statement.
+        contest_id (int): if set, the new task will be tied to this contest.
+
+        """
         self.file_cacher = FileCacher()
+        self.prefix = prefix
+        self.override_name = override_name
         self.update = update
         self.no_statement = no_statement
         self.contest_id = contest_id
@@ -78,7 +92,15 @@ class TaskImporter(BaseImporter):
         # Get the task
         task = self.loader.get_task(get_statement=not self.no_statement)
         if task is None:
-            return
+            return False
+
+        # Override name, if necessary
+        if self.override_name:
+            task.name = self.override_name
+
+        # Apply the prefix, if there is one
+        if self.prefix:
+            task.name = self.prefix + task.name
 
         # Store
         logger.info("Creating task on the database.")
@@ -99,7 +121,7 @@ class TaskImporter(BaseImporter):
                 else:
                     logger.critical("Task \"%s\" already exists in database.",
                                     task.name)
-                    return
+                    return False
             else:
                 if self.contest_id is not None:
                     contest = session.query(Contest) \
@@ -111,7 +133,7 @@ class TaskImporter(BaseImporter):
                             "The specified contest (id %s) does not exist. "
                             "Aborting, no task imported.",
                             self.contest_id)
-                        return
+                        return False
                     else:
                         logger.info(
                             "Attaching task to contest with id %s.",
@@ -125,6 +147,7 @@ class TaskImporter(BaseImporter):
             task_id = task.id
 
         logger.info("Import finished (task id: %s).", task_id)
+        return True
 
 
 def main():
@@ -158,6 +181,16 @@ def main():
         help="id of the contest the task will be attached to"
     )
     parser.add_argument(
+        "-p", "--prefix",
+        action="store", type=utf8_decoder,
+        help="the prefix to be added before the task name"
+    )
+    parser.add_argument(
+        "-n", "--name",
+        action="store", type=utf8_decoder,
+        help="the new name that will override the task name"
+    )
+    parser.add_argument(
         "target",
         action="store", type=utf8_decoder,
         help="target file/directory from where to import task(s)"
@@ -171,14 +204,16 @@ def main():
         parser.error
     )
 
-    TaskImporter(
-        path=args.target,
-        update=args.update,
-        no_statement=args.no_statement,
-        contest_id=args.contest_id,
-        loader_class=loader_class
-    ).do_import()
+    importer = TaskImporter(path=args.target,
+                            update=args.update,
+                            no_statement=args.no_statement,
+                            contest_id=args.contest_id,
+                            prefix=args.prefix,
+                            override_name=args.name,
+                            loader_class=loader_class)
+    success = importer.do_import()
+    return 0 if success is True else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

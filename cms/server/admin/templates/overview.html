@@ -8,7 +8,7 @@ function update_submissions_status(response)
     var msg = utils.standard_response(response);
     if (msg != "")
     {
-        table.html('<tr><td style="text-align: center;" colspan="100">'+ msg + '</td></tr>');
+        table.html('<tr><td style="text-align: center;" colspan="2">'+ msg + '</td></tr>');
         return;
     }
 
@@ -26,8 +26,6 @@ function update_submissions_status(response)
         strings.push('<tr><td>Cannot compile (please check)</td><td>' + response['data']['max_compilations'] + '</td></tr>');
     if (response['data']['max_evaluations'] != 0)
         strings.push('<tr><td>Cannot evaluate (please check)</td><td>' + response['data']['max_evaluations'] + '</td></tr>');
-    if (response['data']['invalid'] != 0)
-        strings.push('<tr><td>Invalid (please check)</td><td>' + response['data']['invalid'] + '</td></tr>');
 
     table.html(strings.join(""));
 };
@@ -38,7 +36,7 @@ function update_queue_status(response)
     var msg = utils.standard_response(response);
     if (msg != "")
     {
-        table.html('<tr><td style="text-align: center;" colspan="100">'+ msg + '</td></tr>');
+        table.html('<tr><td style="text-align: center;" colspan="4">'+ msg + '</td></tr>');
         return;
     }
 
@@ -101,21 +99,29 @@ function update_workers_status(response)
     var msg = utils.standard_response(response);
     if (msg != "")
     {
-        table.html('<tr><td style="text-align: center;" colspan="100">'+ msg + '</td></tr>');
+        table.html('<tr><td style="text-align: center;" colspan="5">'+ msg + '</td></tr>');
         return;
     }
 
     var l = response['data'].length;
     if (l == 0)
     {
-        table.html('<tr><td colspan="100">No workers found.</td>');
+        table.html('<tr><td colspan="5">No workers found.</td>');
         return;
     }
 
     var strings = [];
     for (var i in response['data'])
     {
-        var job = utils.repr_job(response['data'][i]['operation']);
+        var job = "";
+        if ($.isArray(response['data'][i]['operations'])) {
+            job = utils.repr_job(response['data'][i]['operations'][0]);
+            if (response['data'][i]['operations'].length > 1) {
+                job += ' and ' + (response['data'][i]['operations'].length - 1) + ' more';
+            }
+        } else {
+            job = utils.repr_job(response['data'][i]['operations']);
+        }
         var start_time = utils.repr_time_ago(response['data'][i]['start_time']);
         var connected = "Yes";
         if (response['data'][i]['connected'] == false)
@@ -124,7 +130,7 @@ function update_workers_status(response)
         strings.push('<td style="text-align: center;">' + connected + '</td>');
         strings.push('<td>' + job + '</td>');
         strings.push('<td>' + start_time + '</td>');
-        if (response['data'][i]['operation'] == "disabled") {
+        if (response['data'][i]['operations'] == "disabled") {
             strings.push('<td><button onclick="javascript:enable_worker(' + i + '); return true;"' +
 {% if not current_user.permission_all %}
                          ' disabled' +
@@ -155,14 +161,14 @@ function update_logs(response)
     var msg = utils.standard_response(response);
     if (msg != "")
     {
-        table.html('<tr><td style="text-align: center;" colspan="100">'+ msg + '</td></tr>');
+        table.html('<tr><td style="text-align: center;" colspan="5">'+ msg + '</td></tr>');
         return;
     }
 
     var l = response['data'].length;
     if (l == 0)
     {
-        table.html('<tr><td colspan="100">No log entries.</td>');
+        table.html('<tr><td colspan="5">No log entries.</td>');
         return;
     }
 
@@ -194,9 +200,9 @@ function update_statuses()
             || update_statuses.submissions_request.state() != "pending") {
         update_statuses.submissions_request =
             cmsrpc_request("{{ url_root }}",
-                           "EvaluationService", 0,
+                           "AdminWebServer", 0,
                            "submissions_status",
-                           {},
+                           {"contest_id": {{ contest.id }}},
                            update_submissions_status);
     }
     {% end %}
@@ -246,7 +252,7 @@ update_statuses();
       </tr>
     </thead>
     <tbody>
-      <tr><td style="text-align: center;" colspan="100"><img src="{{ url_root }}/static/loading.gif" /></td></tr>
+      <tr><td style="text-align: center;" colspan="2"><img src="{{ url_root }}/static/loading.gif" alt="loading..." /></td></tr>
     </tbody>
   </table>
   <div class="hr"></div>
@@ -265,7 +271,7 @@ update_statuses();
       </tr>
     </thead>
     <tbody>
-      <tr><td style="text-align: center;" colspan="100"><img src="{{ url_root }}/static/loading.gif" /></td></tr>
+      <tr><td style="text-align: center;" colspan="4"><img src="{{ url_root }}/static/loading.gif" alt="loading..." /></td></tr>
     </tbody>
   </table>
   <div class="hr"></div>
@@ -284,7 +290,7 @@ update_statuses();
       </tr>
     </thead>
     <tbody>
-      <tr><td style="text-align: center;" colspan="100"><img src="{{ url_root }}/static/loading.gif" /></td></tr>
+      <tr><td style="text-align: center;" colspan="5"><img src="{{ url_root }}/static/loading.gif" alt="loading..." /></td></tr>
     </tbody>
   </table>
   <div class="hr"></div>
@@ -304,7 +310,7 @@ update_statuses();
       </tr>
     </thead>
     <tbody>
-      <tr><td style="text-align: center;" colspan="100"><img src="{{ url_root }}/static/loading.gif" /></td></tr>
+      <tr><td style="text-align: center;" colspan="5"><img src="{{ url_root }}/static/loading.gif" alt="loading..." /></td></tr>
     </tbody>
   </table>
   <div class="hr"></div>
