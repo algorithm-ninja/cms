@@ -51,12 +51,13 @@ All dependencies can be installed automatically on most Linux distributions.
 Ubuntu
 ------
 
-On Ubuntu 14.10, one will need to run the following script to satisfy all dependencies:
+On Ubuntu 16.04, one will need to run the following script to satisfy all dependencies:
 
 .. sourcecode:: bash
 
     # Feel free to change OpenJDK packages with your preferred JDK.
-    sudo apt-get install build-essential openjdk-8-jre openjdk-8-jdk fpc \
+    sudo apt-get install build-essential openjdk-8-jre openjdk-8-jdk \
+        fp-compiler fp-units-base fp-units-fcl fp-units-misc fp-units-math fp-units-rtl \
         postgresql postgresql-client gettext python2.7 \
         iso-codes shared-mime-info stl-manual cgroup-lite
 
@@ -65,7 +66,7 @@ On Ubuntu 14.10, one will need to run the following script to satisfy all depend
          libffi-dev python-pip
 
     # Optional
-    sudo apt-get install nginx-full php5-cli php5-fpm phppgadmin \
+    sudo apt-get install nginx-full php7.0-cli php5-fpm phppgadmin \
          texlive-latex-base a2ps gcj-jdk haskell-platform
 
 Arch Linux
@@ -160,8 +161,6 @@ Method 2: Virtual environment
 -----------------------------
 
 .. warning::
-
-   At the moment, CMS does not work correctly when installed in a virtual environment. You can use virtual enviroment to run CMS non-installed. See :ref:`the instructions <installation_running-cms-non-installed>` on how to run CMS without installing it.
 
 An alternative method to perform the installation is with a `virtual environment <https://virtualenv.pypa.io/en/latest/>`_, which is an isolated Python environment that you can put wherever you like and that can be activated/deactivated at will. The tool you need in order to create a virtual environment is called ``virtualenv``, and can be installed by looking for ``virtualenv`` using your Linux distribution's package manager. For example:
 
