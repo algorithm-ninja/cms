@@ -127,6 +127,21 @@ class Contest(Base):
         nullable=False,
         default=False)
 
+    # Whether to automatically create a participation for users when they log
+    # in to this contest. Useful for multi-contest setups.
+    open_participation = Column(
+        Boolean,
+        nullable=False,
+        default=False)
+
+    # Whether this contest is hidden from the contest list. Useful for hiding
+    # contests which shouldn't be accessed yet, or contests which aren't meant
+    # to be participated on (e.g. a contest which is not processed by CWS).
+    hidden = Column(
+        Boolean,
+        nullable=False,
+        default=False)
+
     # The parameters that control contest-tokens follow. Note that
     # their effect during the contest depends on the interaction with
     # the parameters that control task-tokens, defined on each Task.
