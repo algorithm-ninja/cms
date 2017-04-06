@@ -121,9 +121,6 @@ setup(
     entry_points={
         "console_scripts": [
             "cmsRunTests=cmstestsuite.RunTests:main",
-            "cmsReplayContest=cmstestsuite.ReplayContest:main",
-            "cmsAdaptContest=cmstestsuite.AdaptContest:main",
-            "cmsTestFileCacher=cmstestsuite.TestFileCacher:main",
             "cmsAuthServer=cmscontrib.AuthServer:main",
             "cmsAddAdmin=cmscontrib.AddAdmin:main",
             "cmsAddParticipation=cmscontrib.AddParticipation:main",
@@ -139,8 +136,8 @@ setup(
             "cmsDumpUpdater=cmscontrib.DumpUpdater:main",
             "cmsExportSubmissions=cmscontrib.ExportSubmissions:main",
             "cmsImportContest=cmscontrib.ImportContest:main",
-            "cmsImportTask=cmscontrib.ImportTask:main",
             "cmsImportDataset=cmscontrib.ImportDataset:main",
+            "cmsImportTask=cmscontrib.ImportTask:main",
             "cmsImportTeam=cmscontrib.ImportTeam:main",
             "cmsImportUser=cmscontrib.ImportUser:main",
             "cmsRWSHelper=cmscontrib.RWSHelper:main",
