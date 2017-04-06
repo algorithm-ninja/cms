@@ -77,8 +77,9 @@ class LoginHandler(ContestHandler):
             storedpw = storedpw.split(":", 1)[1]
             return pw == storedpw
         sha = hashlib.sha256()
-        pw = sha.update(pw + config.secret_key)
-        if pw != storedpw:
+        pw_hashed = sha.update(pw + config.secret_key)
+        pw_hashed = sha.hexdigest()
+        if pw_hashed != storedpw:
             return False
         pw = pw.encode("utf-8")
         payload = bcrypt.hashpw(pw, bcrypt.gensalt())
