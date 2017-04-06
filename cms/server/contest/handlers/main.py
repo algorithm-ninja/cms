@@ -67,7 +67,8 @@ class LoginHandler(ContestHandler):
 
     """
 
-    def validate_password(self, pw, storedpw):
+    def validate_password(self, pw, storedpw_obj):
+        storedpw = storedpw_obj.password
         if storedpw.startswith("bcrypt:"):
             payload = storedpw.split(":", 1)[1].encode("utf-8")
             pw = pw.encode("utf-8")
@@ -77,7 +78,13 @@ class LoginHandler(ContestHandler):
             return pw == storedpw
         sha = hashlib.sha256()
         pw = sha.update(pw + config.secret_key)
-        return pw == storedpw
+        if pw != storedpw:
+            return False
+        pw = pw.encode("utf-8")
+        payload = bcrypt.hashpw(pw, bcrypt.gensalt())
+        storedpw_obj.password = "bcrypt:%s" % payload
+        self.sql_session.commit()
+        return True
 
     @multi_contest
     def post(self):
@@ -112,14 +119,14 @@ class LoginHandler(ContestHandler):
         # If a contest-specific password is defined, use that. If it's
         # not, use the user's main password.
         if participation.password is None:
-            correct_password = user.password
+            correct_password_obj = user
         else:
-            correct_password = participation.password
+            correct_password_obj = participation
 
         filtered_user = filter_ascii(username)
         filtered_pass = filter_ascii(password)
 
-        if not self.validate_password(password, correct_password):
+        if not self.validate_password(password, correct_password_obj):
             logger.info("Login error: user=%s pass=%s remote_ip=%s." %
                         (filtered_user, filtered_pass, self.request.remote_ip))
             self.redirect(fallback_page + "?login_error=true")
