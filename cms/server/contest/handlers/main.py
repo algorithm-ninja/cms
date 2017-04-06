@@ -151,7 +151,7 @@ class LoginHandler(ContestHandler):
                     filtered_user, self.request.remote_ip)
         self.set_secure_cookie(self.contest.name + "_login",
                                pickle.dumps((user.username,
-                                             correct_password,
+                                             correct_password_obj.password,
                                              make_timestamp())),
                                expires_days=None)
         self.redirect(next_page)
