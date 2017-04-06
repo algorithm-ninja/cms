@@ -32,6 +32,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import bcrypt
+import hashlib
 import json
 import logging
 import os
@@ -64,6 +66,19 @@ class LoginHandler(ContestHandler):
     """Login handler.
 
     """
+
+    def validate_password(self, pw, storedpw):
+        if storedpw.startswith("bcrypt:"):
+            payload = storedpw.split(":", 1)[1].encode("utf-8")
+            pw = pw.encode("utf-8")
+            return bcrypt.hashpw(pw, payload) == payload
+        if storedpw.startswith("text:"):
+            storedpw = storedpw.split(":", 1)[1]
+            return pw == storedpw
+        sha = hashlib.sha256()
+        pw = sha.update(pw + config.secret_key)
+        return pw == storedpw
+
     @multi_contest
     def post(self):
         fallback_page = self.r_params["real_contest_root"]
@@ -104,7 +119,7 @@ class LoginHandler(ContestHandler):
         filtered_user = filter_ascii(username)
         filtered_pass = filter_ascii(password)
 
-        if password != correct_password:
+        if not self.validate_password(password, correct_password):
             logger.info("Login error: user=%s pass=%s remote_ip=%s." %
                         (filtered_user, filtered_pass, self.request.remote_ip))
             self.redirect(fallback_page + "?login_error=true")
