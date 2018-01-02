@@ -536,8 +536,8 @@ msgid "Executed"
 msgstr "Ejecutado"
 
 #, python-format
-msgid "%(seconds)0.3f s"
-msgstr "%(seconds)0.3f s"
+msgid "{seconds:0.3f} s"
+msgstr "{seconds:0.3f} s"
 
 #, python-format
 msgid "Automatic (%s)"
@@ -861,12 +861,12 @@ msgid "Tokens"
 msgstr "Tokens"
 
 #, python-format
-msgid "%(seconds)g second"
-msgstr "%(seconds)g segundo"
+msgid "{seconds:g} second"
+msgstr "{seconds:g} segundo"
 
 #, python-format
-msgid "%(seconds)g seconds"
-msgstr "%(seconds)g segundos"
+msgid "{seconds:g} seconds"
+msgstr "{seconds:g} segundos"
 
 #, python-format
 msgid "%(mb)d MiB"
@@ -1016,10 +1016,10 @@ msgstr "Comandos de compilación"
 
 #, python-format
 msgid ""
-"You can find the rules for the %(type_pl)s on the <a href=\"%(url_root)s/"
+"You can find the rules for the %(type_pl)s on the <a href=\"%(contest_root)s/"
 "\">contest overview page</a>."
 msgstr ""
-"Puede consultar las reglas de los %(type_pl)s <a href=\"%(url_root)s/"
+"Puede consultar las reglas de los %(type_pl)s <a href=\"%(contest_root)s/"
 "\">aquí</a>."
 
 msgid ""

@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-01-29 19:38+0000\n"
-"PO-Revision-Date: 2017-01-30 17:19+0200\n"
+"POT-Creation-Date: 2017-08-21 15:35+0300\n"
+"PO-Revision-Date: 2017-10-01 17:50+0300\n"
 "Last-Translator: Andrey Vihrov <andrey.vihrov@gmail.com>\n"
 "Language-Team: Latvian\n"
 "Language: lv\n"
@@ -18,7 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n != 0 ? 1 : "
 "2);\n"
-"X-Generator: Poedit 1.8.11\n"
+"X-Generator: Poedit 2.0.4\n"
+
+#. translators: decimal mark in fractions (e.g., in "3.14")
+msgid "."
+msgstr ","
 
 msgid "Compilation succeeded"
 msgstr "Kompilācija ir veiksmīga"
@@ -157,6 +161,9 @@ msgstr ""
 msgid "N/A"
 msgstr "Nav pieejams"
 
+msgid "Score details temporarily unavailable."
+msgstr "Vērtēšanas detaļas pašlaik nav pieejamas."
+
 #, python-format
 msgid "Subtask %d"
 msgstr "%d. apakšuzdevums"
@@ -171,7 +178,7 @@ msgid "Execution time"
 msgstr "Izpildes laiks"
 
 msgid "Memory used"
-msgstr "Izmantotās atmiņas apjoms"
+msgstr "Izmantotā atmiņa"
 
 msgid "Not correct"
 msgstr "Nepareizs"
@@ -317,9 +324,9 @@ msgstr "Jums netiek piešķirti %(type_pl)s."
 #, python-format
 msgid "You can use a %(type_s)s every second "
 msgid_plural "You can use a %(type_s)s every %(min_interval)g seconds "
-msgstr[0] "Katru %(min_interval)g sekundi jūs varat lietot %(type_s)s"
-msgstr[1] "Katras %(min_interval)g sekundes jūs varat lietot %(type_s)s"
-msgstr[2] "Katras %(min_interval)g sekundes jūs varat lietot %(type_s)s"
+msgstr[0] "Katru %(min_interval)g sekundi jūs varat lietot %(type_s)s "
+msgstr[1] "Katras %(min_interval)g sekundes jūs varat lietot %(type_s)s "
+msgstr[2] "Katras %(min_interval)g sekundes jūs varat lietot %(type_s)s "
 
 #, python-format
 msgid "and no more than one %(type_s)s in total."
@@ -393,39 +400,6 @@ msgstr "Drukas darbs saņemts"
 msgid "Your print job has been received."
 msgstr "Jūsu drukas darbs saņemts."
 
-msgid "Compiling..."
-msgstr "Kompilē…"
-
-msgid "details"
-msgstr "detaļas"
-
-msgid "Evaluating..."
-msgstr "Izpilda…"
-
-msgid "Scoring..."
-msgstr "Vērtē…"
-
-msgid "Evaluated"
-msgstr "Izpildīts"
-
-msgid "Token request discarded"
-msgstr "Žetona pieprasījums noraidīts"
-
-msgid "Your request has been discarded because you have no tokens available."
-msgstr "Jūsu pieprasījums ir noraidīts, jo jums nav žetonu."
-
-msgid ""
-"Your request has been discarded because you already used a token on that "
-"submission."
-msgstr ""
-"Jūsu pieprasījums ir noraidīts, jo jūs jau izmantojāt žetonu šim iesūtījumam."
-
-msgid "Token request received"
-msgstr "Žetona pieprasījums saņemts"
-
-msgid "Your request has been received and applied to the submission."
-msgstr "Jūsu pieprasījums ir saņemts un pielietots iesūtījumam."
-
 #, python-format
 msgid ""
 "You have reached the maximum limit of at most %d submissions among all tasks."
@@ -495,6 +469,39 @@ msgstr "Iesūtījums saņemts"
 msgid "Your submission has been received and is currently being evaluated."
 msgstr "Jūsu iesūtījums ir saņemts un šobrīd tiek vērtēts."
 
+msgid "Compiling..."
+msgstr "Kompilē…"
+
+msgid "details"
+msgstr "detaļas"
+
+msgid "Evaluating..."
+msgstr "Izpilda…"
+
+msgid "Scoring..."
+msgstr "Vērtē…"
+
+msgid "Evaluated"
+msgstr "Izpildīts"
+
+msgid "Token request discarded"
+msgstr "Žetona pieprasījums noraidīts"
+
+msgid "Your request has been discarded because you have no tokens available."
+msgstr "Jūsu pieprasījums ir noraidīts, jo jums nav žetonu."
+
+msgid ""
+"Your request has been discarded because you already used a token on that "
+"submission."
+msgstr ""
+"Jūsu pieprasījums ir noraidīts, jo jūs jau izmantojāt žetonu šim iesūtījumam."
+
+msgid "Token request received"
+msgstr "Žetona pieprasījums saņemts"
+
+msgid "Your request has been received and applied to the submission."
+msgstr "Jūsu pieprasījums ir saņemts un pielietots iesūtījumam."
+
 #, python-format
 msgid "You have reached the maximum limit of at most %d tests among all tasks."
 msgstr "Jūs esat sasniedzis maksimālo testu skaitu visiem uzdevumiem (%d)."
@@ -552,9 +559,39 @@ msgstr "Izpilda…"
 msgid "Executed"
 msgstr "Izpildīts"
 
-#, python-format
-msgid "%(seconds)0.3f s"
-msgstr "%(seconds)0.3f s"
+#, python-brace-format
+msgid "{seconds:0.3f} s"
+msgstr "{seconds:0.3f} s"
+
+msgid "Communication"
+msgstr "Komunikācija"
+
+msgid "Announcements"
+msgstr "Paziņojumi"
+
+msgid "(no subject)"
+msgstr "(bez temata)"
+
+msgid "Questions"
+msgstr "Jautājumi"
+
+msgid "Subject"
+msgstr "Temats"
+
+msgid "Text"
+msgstr "Teksts"
+
+msgid "Ask question"
+msgstr "Uzdot jautājumu"
+
+msgid "Reset"
+msgstr "Atiestatīt"
+
+msgid "no answer yet"
+msgstr "pagaidām atbildes nav"
+
+msgid "Messages"
+msgstr "Ziņojumi"
 
 #, python-format
 msgid "Automatic (%s)"
@@ -589,9 +626,6 @@ msgstr "Parole"
 msgid "Login"
 msgstr "Pieslēgties"
 
-msgid "Reset"
-msgstr "Atiestatīt"
-
 msgid "New message"
 msgstr "Jauns ziņojums"
 
@@ -611,6 +645,12 @@ msgstr "Līdz sacensību sākumam:"
 msgid "Until contest ends:"
 msgstr "Līdz sacensību beigām:"
 
+msgid "Until analysis starts:"
+msgstr "Līdz pēcsacensību režīma sākumam:"
+
+msgid "Until analysis ends:"
+msgstr "Līdz pēcsacensību režīma beigām:"
+
 msgid "Time left:"
 msgstr "Atlikušais laiks:"
 
@@ -619,9 +659,6 @@ msgstr "Servera laiks:"
 
 msgid "Overview"
 msgstr "Pārskats"
-
-msgid "Communication"
-msgstr "Komunikācija"
 
 msgid "Statement"
 msgstr "Formulējums"
@@ -646,30 +683,6 @@ msgstr "tiek izplatīta izmantojot"
 
 msgid "GNU Affero General Public License"
 msgstr "GNU Affero vispārējo publisko licenci"
-
-msgid "Announcements"
-msgstr "Paziņojumi"
-
-msgid "(no subject)"
-msgstr "(bez temata)"
-
-msgid "Questions"
-msgstr "Jautājumi"
-
-msgid "Subject"
-msgstr "Temats"
-
-msgid "Text"
-msgstr "Teksts"
-
-msgid "Ask question"
-msgstr "Uzdot jautājumu"
-
-msgid "no answer yet"
-msgstr "pagaidām atbildes nav"
-
-msgid "Messages"
-msgstr "Ziņojumi"
 
 msgid "Programming languages and libraries"
 msgstr "Programmēšanas valodas un bibliotēkas"
@@ -742,6 +755,30 @@ msgstr "Sacensības jau ir beigušās."
 #, python-format
 msgid "The contest started at %(start_time)s and ended at %(stop_time)s."
 msgstr "Sacensības sākās %(start_time)s un beidzās %(stop_time)s."
+
+msgid "The analysis mode hasn't started yet."
+msgstr "Pēcsacensību režīms vēl nav sācies."
+
+#, python-format
+msgid ""
+"The analysis mode will start at %(start_time)s and will end at %(stop_time)s."
+msgstr "Pēcsacensību režīms sāksies %(start_time)s un beigsies %(stop_time)s."
+
+msgid "The analysis mode is currently running."
+msgstr "Pēcsacensību režīms ir aktīvs."
+
+#, python-format
+msgid ""
+"The analysis mode started at %(start_time)s and will end at %(stop_time)s."
+msgstr ""
+"Pēcsacensību režīms ir sācies %(start_time)s un beigsies %(stop_time)s."
+
+msgid "The analysis mode has already ended."
+msgstr "Pēcsacensību režīms jau ir beidzies."
+
+#, python-format
+msgid "The analysis mode started at %(start_time)s and ended at %(stop_time)s."
+msgstr "Pēcsacensību režīms sākās %(start_time)s un beidzās %(stop_time)s."
 
 msgid "You have an infinite number of tokens."
 msgstr "Jums ir neierobežots skaits žetonu."
@@ -868,13 +905,13 @@ msgstr "Datnes"
 msgid "Tokens"
 msgstr "Žetoni"
 
-#, python-format
-msgid "%(seconds)g second"
-msgstr "%(seconds)g sekunde"
+#, python-brace-format
+msgid "{seconds:g} second"
+msgstr "{seconds:g} sekunde"
 
-#, python-format
-msgid "%(seconds)g seconds"
-msgstr "%(seconds)g sekundes"
+#, python-brace-format
+msgid "{seconds:g} seconds"
+msgstr "{seconds:g} sekundes"
 
 #, python-format
 msgid "%(mb)d MiB"
@@ -951,7 +988,7 @@ msgid "Compilation time:"
 msgstr "Kompilēšanas laiks:"
 
 msgid "Memory used:"
-msgstr "Izmantotās atmiņas apjoms:"
+msgstr "Izmantotā atmiņa:"
 
 msgid "Standard output"
 msgstr "Standarta izvads"
@@ -1024,11 +1061,11 @@ msgstr "Kompilēšanas komandas"
 
 #, python-format
 msgid ""
-"You can find the rules for the %(type_pl)s on the <a href=\"%(url_root)s/"
+"You can find the rules for the %(type_pl)s on the <a href=\"%(contest_root)s"
 "\">contest overview page</a>."
 msgstr ""
-"Jūs varat atrast %(type_pl)s noteikumus <a href=\"%(url_root)s/\">sacensību "
-"apskata lapā</a>."
+"Jūs varat atrast %(type_pl)s noteikumus <a href=\"%(contest_root)s"
+"\">sacensību apskata lapā</a>."
 
 msgid ""
 "Remeber that to see the detailed result of a submission you need to use both "
@@ -1094,6 +1131,9 @@ msgstr "Kopējais rezultāts"
 
 msgid "Score"
 msgstr "Rezultāts"
+
+msgid "Official"
+msgstr "Ieskaitīts"
 
 msgid "Token"
 msgstr "Žetons"

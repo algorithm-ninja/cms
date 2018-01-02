@@ -521,8 +521,8 @@ msgid "Executed"
 msgstr "Đã chạy xong"
 
 #, python-format
-msgid "%(seconds)0.3f s"
-msgstr "%(seconds)0.3f giây"
+msgid "{seconds:0.3f} s"
+msgstr "{seconds:0.3f} giây"
 
 #, python-format
 msgid "Automatic (%s)"
@@ -838,12 +838,12 @@ msgid "Tokens"
 msgstr "Token"
 
 #, python-format
-msgid "%(seconds)g second"
-msgstr "%(seconds)g giây"
+msgid "{seconds:g} second"
+msgstr "{seconds:g} giây"
 
 #, python-format
-msgid "%(seconds)g seconds"
-msgstr "%(seconds)g giây"
+msgid "{seconds:g} seconds"
+msgstr "{seconds:g} giây"
 
 #, python-format
 msgid "%(mb)d MiB"
@@ -989,10 +989,10 @@ msgstr "Lệnh biên dịch"
 
 #, python-format
 msgid ""
-"You can find the rules for the %(type_pl)s on the <a href=\"%(url_root)s/"
+"You can find the rules for the %(type_pl)s on the <a href=\"%(contest_root)s/"
 "\">contest overview page</a>."
 msgstr ""
-"Bạn có thể đọc quy định về %(type_pl)s tại <a href=\"%(url_root)s/\">trang "
+"Bạn có thể đọc quy định về %(type_pl)s tại <a href=\"%(contest_root)s/\">trang "
 "tổng quan kì thi</a>."
 
 msgid ""

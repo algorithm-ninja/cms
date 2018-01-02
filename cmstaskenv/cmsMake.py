@@ -5,7 +5,7 @@
 # Copyright © 2010-2014 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
 # Copyright © 2010-2017 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
-# Copyright © 2013 Luca Wehrstedt <luca.wehrstedt@gmail.com>
+# Copyright © 2013-2017 Luca Wehrstedt <luca.wehrstedt@gmail.com>
 # Copyright © 2014-2015 Luca Versari <veluca93@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -76,6 +76,7 @@ def detect_data_dir():
     for _dir in DATA_DIRS:
         if os.path.exists(_dir):
             return os.path.abspath(_dir)
+
 
 DATA_DIR = detect_data_dir()
 
@@ -340,6 +341,7 @@ def iter_GEN(name):
 
         else:
             testcase, comment = splitted
+            is_trivial = comment.startswith(" ")
             testcase = testcase.strip()
             comment = comment.strip()
             testcase_detected = testcase != ''
@@ -349,9 +351,15 @@ def iter_GEN(name):
             flags = [testcase_detected,
                      copy_testcase_detected,
                      subtask_detected]
-            if len([x for x in flags if x]) > 1:
+
+            flags_count = len([x for x in flags if x])
+
+            if flags_count > 1:
                 raise Exception("No testcase and command in"
                                 " the same line allowed")
+
+            if flags_count == 0 and not is_trivial:
+                raise Exception("Unrecognized non-trivial line")
 
             if testcase_detected:
                 yield (False, testcase, st)
@@ -579,9 +587,10 @@ def clean(base_dir, generated_list):
         pass
 
     # Delete compiled and/or backup files
-    os.system("find %s -name '*.o' -delete" % (base_dir))
-    os.system("find %s -name '*.pyc' -delete" % (base_dir))
-    os.system("find %s -name '*~' -delete" % (base_dir))
+    for dirname, _, filenames in os.walk(base_dir):
+        for filename in filenames:
+            if any(filename.endswith(ext) for ext in {".o", ".pyc", "~"}):
+                os.remove(os.path.join(dirname, filename))
 
 
 def build_execution_tree(actions):
@@ -755,6 +764,7 @@ def main():
         # After all work, possibly clean the left-overs of testing
         finally:
             clean_test_env()
+
 
 if __name__ == '__main__':
     main()

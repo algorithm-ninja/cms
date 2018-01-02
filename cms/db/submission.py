@@ -8,6 +8,7 @@
 # Copyright © 2012-2015 Luca Wehrstedt <luca.wehrstedt@gmail.com>
 # Copyright © 2013 Bernard Blackham <bernard@largestprime.net>
 # Copyright © 2014 Fabian Gundlach <320pointsguy@gmail.com>
+# Copyright © 2016 Amir Keivan Mohtashami <akmohtashami97@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -30,6 +31,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from sqlalchemy import Boolean
 from sqlalchemy.schema import Column, ForeignKey, ForeignKeyConstraint, \
     UniqueConstraint
 from sqlalchemy.types import Integer, Float, String, Unicode, DateTime
@@ -95,6 +97,13 @@ class Submission(Base):
         Unicode,
         nullable=False,
         default="")
+
+    # If false, submission will not be considered in contestant's score.
+    official = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
 
     @property
     def short_comment(self):
@@ -355,8 +364,9 @@ class SubmissionResult(Base):
         String,
         nullable=True)
 
-    # The same as the last two fields, but from the point of view of
-    # the user (when he/she did not play a token).
+    # The same as the last two fields, but only showing information
+    # visible to the user (assuming they did not use a token on this
+    # submission).
     public_score = Column(
         Float,
         nullable=True)
@@ -413,6 +423,21 @@ class SubmissionResult(Base):
             .filter(Evaluation.submission_result == self)\
             .filter(Evaluation.testcase == testcase)\
             .first()
+
+    def get_max_evaluation_resources(self):
+        """Return the maximum time and memory used by this result
+
+        return (float|None, int|None): max used time in seconds and
+            memory in bytes, or None if data is incomplete or
+            unavailable.
+
+        """
+        t, m = None, None
+        if self.evaluated() and self.evaluations:
+            for ev in self.evaluations:
+                t = max(t, ev.execution_time)
+                m = max(m, ev.execution_memory)
+        return (t, m)
 
     def compiled(self):
         """Return whether the submission result has been compiled.

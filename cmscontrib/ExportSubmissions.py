@@ -4,6 +4,7 @@
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2015-2016 William Di Luigi <williamdiluigi@gmail.com>
 # Copyright © 2016-2017 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2017 Myungwoo Chun <mc.tamaki@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -41,6 +42,9 @@ from cms.grading import languagemanager
 logger = logging.getLogger(__name__)
 
 
+# Templates for the comment at the beginning of the exported submission.
+# Note that output only submissions will contain an initial, C-style formatted
+# comment, so to recover the original file one will need to use tail -n +6.
 _RAW_TEMPLATE_DATA = """
 * user:  %s
 * fname: %s
@@ -49,8 +53,6 @@ _RAW_TEMPLATE_DATA = """
 * score: %s
 * date:  %s
 """
-
-
 TEMPLATE = {
     ".c": "/**%s*/\n" % _RAW_TEMPLATE_DATA,
     ".pas": "(**%s*)\n" % _RAW_TEMPLATE_DATA,
@@ -60,6 +62,7 @@ TEMPLATE = {
 }
 TEMPLATE[".cpp"] = TEMPLATE[".c"]
 TEMPLATE[".java"] = TEMPLATE[".c"]
+TEMPLATE[".txt"] = TEMPLATE[".c"]
 
 
 def filter_top_scoring(results, unique):
@@ -182,7 +185,7 @@ def main():
 
         print("%s file(s) will be created." % len(results))
         if raw_input("Continue? [Y/n] ").lower() not in ["y", ""]:
-            sys.exit(0)
+            return 0
 
         done = 0
         for row in results:
@@ -192,14 +195,23 @@ def main():
             name = f_filename
             if name.endswith(".%l"):
                 name = name[:-3]  # remove last 3 chars
-            ext = languagemanager.get_language(s_language).source_extension
+            ext = languagemanager.get_language(s_language).source_extension \
+                if s_language else '.txt'
 
             filename = args.filename.format(id=s_id, name=name, ext=ext,
-                                            time=s_timestamp, user=u_name)
+                                            time=s_timestamp, user=u_name,
+                                            task=t_name)
             filename = os.path.join(args.output_dir, filename)
             if os.path.exists(filename):
                 logger.warning("Skipping file '%s' because it already exists",
                                filename)
+                continue
+            filedir = os.path.dirname(filename)
+            if not os.path.exists(filedir):
+                os.makedirs(filedir)
+            if not os.path.isdir(filedir):
+                logger.warning("%s is not a directory, skipped.", filedir)
+                continue
 
             fso = FSObject.get_from_digest(f_digest, session)
             assert fso is not None

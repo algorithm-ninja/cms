@@ -498,8 +498,8 @@ msgid "Executed"
 msgstr "Izvedeno"
 
 #, python-format
-msgid "%(seconds)0.3f s"
-msgstr "%(seconds)0.3f s"
+msgid "{seconds:0.3f} s"
+msgstr "{seconds:0.3f} s"
 
 #, python-format
 msgid "Automatic (%s)"
@@ -758,12 +758,12 @@ msgid "Tokens"
 msgstr "Žetoni"
 
 #, python-format
-msgid "%(seconds)g second"
-msgstr "%(seconds)g sekunda"
+msgid "{seconds:g} second"
+msgstr "{seconds:g} sekunda"
 
 #, python-format
-msgid "%(seconds)g seconds"
-msgstr "%(seconds)g sekund"
+msgid "{seconds:g} seconds"
+msgstr "{seconds:g} sekund"
 
 #, python-format
 msgid "%(mb)d MiB"
@@ -897,8 +897,8 @@ msgid "Compilation commands"
 msgstr "Ukazi za prevajanje"
 
 #, python-format
-msgid "You can find the rules for the %(type_pl)s on the <a href=\"%(url_root)s/\">contest overview page</a>."
-msgstr "Pravila za %(type_pl)s so dostopna na <a href=\"%(url_root)s/\">pregledni strani</a>."
+msgid "You can find the rules for the %(type_pl)s on the <a href=\"%(contest_root)s/\">contest overview page</a>."
+msgstr "Pravila za %(type_pl)s so dostopna na <a href=\"%(contest_root)s/\">pregledni strani</a>."
 
 msgid "Remeber that to see the detailed result of a submission you need to use both a contest-token and a task-token."
 msgstr "Če želiš videti podrobnejši izzid oddaje, moraš uporabiti oba žetona."

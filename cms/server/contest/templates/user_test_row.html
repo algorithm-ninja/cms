@@ -1,4 +1,5 @@
 {% from cms.server import format_size %}
+{% from cms.locale import locale_format %}
 {% if show_date %}
     {% set col1 = "<td class=\"datetime\">%s</td>" % format_datetime(t.timestamp, timezone, locale=locale) %}
 {% else %}
@@ -37,7 +38,7 @@
     </td>
 {% else %}
     <td class="time">
-        {{ _("%(seconds)0.3f s") % {'seconds': tr.execution_time} }}
+        {{ locale_format(_, _("{seconds:0.3f} s"), seconds=tr.execution_time) }}
     </td>
 {% end %}
 {% if tr is None or tr.execution_memory is None %}
@@ -46,11 +47,11 @@
     </td>
 {% else %}
     <td class="memory">
-        {{ format_size(tr.execution_memory) }}
+        {{ format_size(tr.execution_memory, _) }}
     </td>
 {% end %}
     <td class="input">
-        <a class="btn" href="{{ contest_root }}/tasks/{{ encode_for_url(task.name) }}/tests/{{ t_idx }}/input">
+        <a class="btn" href="{{ contest_url("tasks", task.name, "tests", t_idx, "input") }}">
             {{ _("Download") }}
         </a>
     </td>
@@ -65,7 +66,7 @@
             {{ _("N/A") }}
         </a>
         {% else %}
-        <a class="btn btn-primary" href="{{ contest_root }}/tasks/{{ encode_for_url(task.name) }}/tests/{{ t_idx }}/output">
+        <a class="btn btn-primary" href="{{ contest_url("tasks", task.name, "tests", t_idx, "output") }}">
             {{ _("Download") }}
         </a>
         {% end %}
@@ -83,7 +84,7 @@
         {% elif len(files) == 1 %}
             {% set filename = t.files.keys()[0] %}
             {% set real_filename = filename.replace(".%l", get_language(t.language).source_extension) %}
-        <a class="btn" href="{{ contest_root }}/tasks/{{ encode_for_url(task.name) }}/tests/{{ t_idx }}/files/{{ encode_for_url(real_filename) }}">
+        <a class="btn" href="{{ contest_url("tasks", task.name, "tests", t_idx, "files", real_filename) }}">
             {{ _("Download") }}
         </a>
         {% else %}
@@ -100,7 +101,7 @@
                     {% set real_filename = filename %}
                 {% end %}
                 <li>
-                    <a href="{{ contest_root }}/tasks/{{ encode_for_url(task.name) }}/tests/{{ t_idx }}/files/{{ encode_for_url(filename) }}">
+                    <a href="{{ contest_url("tasks", task.name, "tests", t_idx, "files", filename) }}">
                         {{ real_filename }}
                     </a>
                 </li>

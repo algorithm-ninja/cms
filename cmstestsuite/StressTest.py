@@ -3,10 +3,11 @@
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2012 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
-# Copyright © 2010-2016 Stefano Maggiolo <s.maggiolo@gmail.com>
+# Copyright © 2010-2017 Stefano Maggiolo <s.maggiolo@gmail.com>
 # Copyright © 2010-2012 Matteo Boscariol <boscarim@hotmail.com>
 # Copyright © 2014 Artem Iglikov <artem.iglikov@gmail.com>
 # Copyright © 2016 Luca Wehrstedt <luca.wehrstedt@gmail.com>
+# Copyright © 2017 Luca Chiodini <luca@chiodini.org>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -34,12 +35,13 @@ import threading
 import random
 import time
 
-from cms import config, ServiceCoord, get_service_address
+from cms import config, ServiceCoord, get_service_address, utf8_decoder
 from cms.db import Contest, SessionGen
+from cmscommon.crypto import parse_authentication
 
 import cmstestsuite.web
 from cmstestsuite.web import Browser
-from cmstestsuite.web.CWSRequests import HomepageRequest, LoginRequest, \
+from cmstestsuite.web.CWSRequests import HomepageRequest, CWSLoginRequest, \
     TaskRequest, TaskStatementRequest, SubmitRandomRequest
 
 
@@ -186,7 +188,7 @@ class Actor(threading.Thread):
             random.expovariate(self.metrics['time_lambda'])
         sleep_num = int(time_to_wait / SLEEP_PERIOD)
         remaining_sleep = time_to_wait - (sleep_num * SLEEP_PERIOD)
-        for i in xrange(sleep_num):
+        for _ in xrange(sleep_num):
             time.sleep(SLEEP_PERIOD)
             if self.die:
                 raise ActorDying()
@@ -200,10 +202,12 @@ class Actor(threading.Thread):
                                      self.username,
                                      loggedin=False,
                                      base_url=self.base_url))
-        self.do_step(LoginRequest(self.browser,
-                                  self.username,
-                                  self.password,
-                                  base_url=self.base_url))
+        lr = CWSLoginRequest(self.browser,
+                             self.username,
+                             self.password,
+                             base_url=self.base_url)
+        self.browser.read_xsrf_token(lr.base_url)
+        self.do_step(lr)
         self.do_step(HomepageRequest(self.browser,
                                      self.username,
                                      loggedin=True,
@@ -266,7 +270,17 @@ def harvest_contest_data(contest_id):
         contest = Contest.get_from_id(contest_id, session)
         for participation in contest.participations:
             user = participation.user
-            users[user.username] = {'password': user.password}
+            # Pick participation's password if present, or the user's.
+            password_source = participation.password
+            if password_source is None:
+                password_source = user.password
+            # We can log in only if we know the plaintext password.
+            method, password = parse_authentication(password_source)
+            if method != "plaintext":
+                print("Not using user %s with non-plaintext password."
+                      % user.username)
+                continue
+            users[user.username] = {'password': password}
         for task in contest.tasks:
             tasks.append((task.id, task.name, task.statements.keys()))
     return users, tasks
@@ -289,7 +303,8 @@ def main():
         help="sort usernames alphabetically before slicing them")
     parser.add_argument(
         "-u", "--base-url", action="store", type=utf8_decoder,
-        help="base URL for placing HTTP requests")
+        help="base contest URL for placing HTTP requests "
+             "(without trailing slash)")
     parser.add_argument(
         "-S", "--submissions-path", action="store", type=utf8_decoder,
         help="base path for submission to send")
@@ -333,6 +348,10 @@ def main():
             contest_data = ast.literal_eval(file_.read())
         users = contest_data['users']
         tasks = contest_data['tasks']
+
+    if len(users) == 0:
+        print("No viable users, terminating.")
+        return
 
     if args.actor_num is not None:
         user_items = users.items()
@@ -379,10 +398,8 @@ def main():
     # scanner.dump_all_objects('objects.json')
     # print("Dump finished")
 
-    finished = False
-    while not finished:
-        for actor in actors:
-            actor.join()
+    for actor in actors:
+        actor.join()
 
     print("Test finished", file=sys.stderr)
 

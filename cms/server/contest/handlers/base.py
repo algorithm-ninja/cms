@@ -34,14 +34,13 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import ipaddress
 import logging
 import os
 import traceback
 import tornado.web
 
 from cms.db import Contest
-from cms.server import CommonRequestHandler, get_url_root
+from cms.server import CommonRequestHandler
 
 
 logger = logging.getLogger(__name__)
@@ -72,8 +71,6 @@ class BaseHandler(CommonRequestHandler):
         """
         super(BaseHandler, self).prepare()
 
-        self._ = self.locale.translate
-
         # We need this to be computed for each request because we want to be
         # able to import new contests without having to restart CWS. But only
         # in multi-contest mode.
@@ -91,7 +88,7 @@ class BaseHandler(CommonRequestHandler):
         """
         ret = {}
         ret["timestamp"] = self.timestamp
-        ret["url_root"] = get_url_root(self.request.path)
+        ret["url"] = self.url
 
         ret["contest_list"] = self.contest_list
 
