@@ -161,6 +161,14 @@ EVALUATION_MESSAGES = MessageCollection([
     HumanMessage("wrong",
                  N_("Output isn't correct"),
                  N_("Your submission ran, but gave the wrong answer")),
+    HumanMessage("wrong",
+                 N_("Output isn't correct. Line %d is '%s', but it should "
+                    "be '%s'."),
+                 N_("Your submission ran, but gave the wrong answer")),
+    HumanMessage("emptyfile",
+                 N_("Empty output. Did you write to the right destination?"),
+                 N_("Your output file was empty. Please check that "
+                    "your solution writes its output to the correct file.")),
     HumanMessage("nooutput",
                  N_("Evaluation didn't produce file %s"),
                  N_("Your submission ran, but did not write on the "
@@ -724,7 +732,7 @@ def white_diff_canonicalize(string):
     return string
 
 
-def white_diff(output, res):
+def white_diff(output, res, should_explain):
     """Compare the two output files. Two files are equal if for every
     integer i, line i of first file is equal to line i of second
     file. Two lines are equal if they differ only by number or type of
@@ -737,36 +745,55 @@ def white_diff(output, res):
 
     output (file): the first file to compare.
     res (file): the second file to compare.
-    return (bool): True if the two file are equal as explained above.
+    should_explain (bool): true if some feedback should be given to
+        the contestant.
+    return (bool, [unicode]): True if the two file are equal as explained
+        above, as well as a description text for the contestant.
 
     """
 
+    result = True
+    text = [EVALUATION_MESSAGES.get("success").message]
+    num_lines = 0
     while True:
         lout = output.readline()
         lres = res.readline()
 
         # Both files finished: comparison succeded
         if lres == '' and lout == '':
-            return True
+            break
 
         # Only one file finished: ok if the other contains only blanks
-        elif lres == '' or lout == '':
+        if lres == '' or lout == '':
             lout = lout.strip(WHITES)
             lres = lres.strip(WHITES)
             if lout != '' or lres != '':
-                return False
+                result = False
+                text = [EVALUATION_MESSAGES.get("wrong").message]
+                break
+            continue
 
-        # Both file still have lines to go: ok if they agree except
+        # Both files still have lines to go: ok if they agree except
         # for the number of whitespaces
-        else:
-            lout = white_diff_canonicalize(lout)
-            lres = white_diff_canonicalize(lres)
-            if lout != lres:
-                return False
+        num_lines += 1
+        lout = white_diff_canonicalize(lout)
+        lres = white_diff_canonicalize(lres)
+        if lout != lres:
+            result = False
+            if should_explain:
+                text = [EVALUATION_MESSAGES.get("wrong").message]
+            else:
+                text = [EVALUATION_MESSAGES.get("explainedwrong").message,
+                        num_lines, lout, lres]
+            break
+
+    if result is False and num_lines == 0 and should_explain:
+        text = [EVALUATION_MESSAGES.get("emptyfile").message]
+    return (result, text)
 
 
 def white_diff_step(sandbox, output_filename,
-                    correct_output_filename):
+                    correct_output_filename, should_explain=False):
     """Assess the correctedness of a solution by doing a simple white
     diff against the reference solution. It gives an outcome 1.0 if
     the output and the reference output are identical (or differ just
@@ -777,6 +804,8 @@ def white_diff_step(sandbox, output_filename,
     output_filename (string): the filename of user's output in the
         sandbox.
     correct_output_filename (string): the same with reference output.
+    should_explain (bool): true if some feedback should be given to
+        the contestant.
 
     return ((float, [unicode])): the outcome as above and a
         description text.
@@ -785,12 +814,11 @@ def white_diff_step(sandbox, output_filename,
     if sandbox.file_exists(output_filename):
         out_file = sandbox.get_file(output_filename)
         res_file = sandbox.get_file(correct_output_filename)
-        if white_diff(out_file, res_file):
+        ok, text = white_diff(out_file, res_file)
+        if ok:
             outcome = 1.0
-            text = [EVALUATION_MESSAGES.get("success").message]
         else:
             outcome = 0.0
-            text = [EVALUATION_MESSAGES.get("wrong").message]
     else:
         outcome = 0.0
         text = [EVALUATION_MESSAGES.get("nooutput").message, output_filename]

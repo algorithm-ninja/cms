@@ -426,9 +426,9 @@ class EvaluationJob(Job):
 
     Input data (usually filled by ES): testcase_codename, language,
     files, managers, executables, input, output, time_limit,
-    memory_limit. Output data (filled by the Worker): success,
-    outcome, text, user_output, executables, text, plus. Metadata:
-    only_execution, get_output.
+    memory_limit, should_explain. Output data (filled by the Worker):
+    success, outcome, text, user_output, executables, text, plus.
+    Metadata: only_execution, get_output.
 
     """
     def __init__(self, operation=None, task_type=None,
@@ -436,8 +436,8 @@ class EvaluationJob(Job):
                  sandboxes=None, info=None,
                  language=None, multithreaded_sandbox=False,
                  files=None, managers=None, executables=None,
-                 input=None, output=None,
-                 time_limit=None, memory_limit=None,
+                 input=None, output=None, time_limit=None,
+                 memory_limit=None, should_explain=False,
                  success=None, outcome=None, text=None,
                  user_output=None, plus=None,
                  only_execution=False, get_output=False):
@@ -471,6 +471,7 @@ class EvaluationJob(Job):
         self.output = output
         self.time_limit = time_limit
         self.memory_limit = memory_limit
+        self.should_explain = should_explain
         self.outcome = outcome
         self.user_output = user_output
         self.plus = plus
@@ -485,6 +486,7 @@ class EvaluationJob(Job):
             'output': self.output,
             'time_limit': self.time_limit,
             'memory_limit': self.memory_limit,
+            'should_explain': self.should_explain,
             'outcome': self.outcome,
             'user_output': self.user_output,
             'plus': self.plus,
@@ -545,6 +547,7 @@ class EvaluationJob(Job):
             executables=dict(submission_result.executables),
             time_limit=dataset.time_limit,
             memory_limit=dataset.memory_limit,
+            should_explain=testcase.explained,
             input=testcase.input,
             output=testcase.output,
             info=info

@@ -561,6 +561,13 @@ class Testcase(Base):
         nullable=False,
         default=False)
 
+    # If true, the user will receive an explaination of why his solution
+    # got the score it did.
+    explained = Column(
+        Boolean,
+        nullable=False,
+        default=False)
+
     # Digests of the input and output files.
     input = Column(
         String,
