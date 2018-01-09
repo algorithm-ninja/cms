@@ -161,7 +161,7 @@ EVALUATION_MESSAGES = MessageCollection([
     HumanMessage("wrong",
                  N_("Output isn't correct"),
                  N_("Your submission ran, but gave the wrong answer")),
-    HumanMessage("wrong",
+    HumanMessage("explainedwrong",
                  N_("Output isn't correct. Line %d is '%s', but it should "
                     "be '%s'."),
                  N_("Your submission ran, but gave the wrong answer")),
@@ -781,10 +781,10 @@ def white_diff(output, res, should_explain):
         if lout != lres:
             result = False
             if should_explain:
-                text = [EVALUATION_MESSAGES.get("wrong").message]
-            else:
                 text = [EVALUATION_MESSAGES.get("explainedwrong").message,
                         num_lines, lout, lres]
+            else:
+                text = [EVALUATION_MESSAGES.get("wrong").message]
             break
 
     if result is False and num_lines == 0 and should_explain:
@@ -814,7 +814,7 @@ def white_diff_step(sandbox, output_filename,
     if sandbox.file_exists(output_filename):
         out_file = sandbox.get_file(output_filename)
         res_file = sandbox.get_file(correct_output_filename)
-        ok, text = white_diff(out_file, res_file)
+        ok, text = white_diff(out_file, res_file, should_explain)
         if ok:
             outcome = 1.0
         else:
