@@ -135,7 +135,7 @@ class LoginHandler(ContestHandler):
         filtered_user = filter_ascii(username)
         filtered_pass = filter_ascii(password)
 
-        if not validate_password(correct_password, password):
+        if not validate_password(correct_password_obj, password):
             logger.info("Login error: user=%s pass=%s remote_ip=%s." %
                         (filtered_user, filtered_pass, self.request.remote_ip))
             self.redirect(error_page)
