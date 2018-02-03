@@ -129,8 +129,8 @@ class ContestHandler(BaseHandler):
             except KeyError:
                 self.contest = Contest(
                     name=contest_name, description=contest_name)
-                self.r_params = self.render_params()
-                raise tornado.web.HTTPError(404)
+                self.r_params = super(ContestHandler, self).render_params()
+                self.write_error(404)
         else:
             # Select the contest specified on the command line
             self.contest = Contest.get_from_id(

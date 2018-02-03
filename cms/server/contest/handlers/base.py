@@ -95,6 +95,7 @@ class BaseHandler(CommonRequestHandler):
         return ret
 
     def write_error(self, status_code, **kwargs):
+        self.set_status(status_code)
         if "exc_info" in kwargs and \
                 kwargs["exc_info"][0] != tornado.web.HTTPError:
             exc_info = kwargs["exc_info"]
