@@ -24,7 +24,7 @@ from __future__ import unicode_literals
 
 import time
 import platform
-from datetime import tzinfo, timedelta, datetime
+from datetime import tzinfo, timedelta, datetime, date
 from pytz import timezone, all_timezones
 
 
@@ -59,7 +59,7 @@ EPOCH = datetime(1970, 1, 1)
 def make_timestamp(_datetime=None):
     """Return the timestamp associated with the given datetime object.
 
-    _datetime (datetime|None): a datetime object, or None to use now.
+    _datetime (datetime|date|None): a datetime object, or None to use now.
 
     return (float): the POSIX timestamp corresponding to the given
         datetime ("read" in UTC).
@@ -67,8 +67,9 @@ def make_timestamp(_datetime=None):
     """
     if _datetime is None:
         return time.time()
-    else:
-        return (_datetime - EPOCH).total_seconds()
+    if isinstance(_datetime, date):
+        _datetime = datetime.combine(_datetime, datetime.min.time())
+    return (_datetime - EPOCH).total_seconds()
 
 
 def get_timezone(user, contest):
