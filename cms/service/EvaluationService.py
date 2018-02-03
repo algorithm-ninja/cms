@@ -888,6 +888,8 @@ class EvaluationService(TriggeredService):
             contest_id = self.contest_id
 
         with SessionGen() as session:
+            if dataset_id is not None and task_id is None:
+                task_id = Dataset.get_from_id(dataset_id, session).task_id
             # First we load all involved submissions.
             submissions = get_submissions(
                 # Give contest_id only if all others are None.
@@ -921,7 +923,9 @@ class EvaluationService(TriggeredService):
                     submission_id,
                     dataset_id} == {None}
                 else None,
-                participation_id, task_id, submission_id, dataset_id, session)
+                participation_id,
+                task_id if dataset_id is None else None,
+                submission_id, dataset_id, session)
             logger.info("Submission results to invalidate %s for: %d.",
                         level, len(submission_results))
             for submission_result in submission_results:
