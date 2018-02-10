@@ -67,7 +67,7 @@ def make_timestamp(_datetime=None):
     """
     if _datetime is None:
         return time.time()
-    if isinstance(_datetime, date):
+    if not isinstance(_datetime, datetime):
         _datetime = datetime.combine(_datetime, datetime.min.time())
     return (_datetime - EPOCH).total_seconds()
 
