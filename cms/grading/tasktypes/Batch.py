@@ -313,19 +313,16 @@ class Batch(TaskType):
                     # Check the solution with white_diff
                     if self.parameters[2] == "diff":
                         outcome, text = white_diff_step(
-                            sandbox, output_filename, "res.txt",
-                            should_explain=job.should_explain)
+                            sandbox, output_filename, "res.txt")
 
                     # Check the solution with a comparator
                     elif self.parameters[2] == "comparator":
                         manager_filename = "checker"
-                        if job.should_explain:
-                            manager_filename = "explainer"
 
                         if manager_filename not in job.managers:
                             logger.error("Configuration error: missing or "
                                          "invalid comparator (it must be "
-                                         "named '%s')" % manager_filename,
+                                         "named 'checker')",
                                          extra={"operation": job.info})
                             success = False
 
