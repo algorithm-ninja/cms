@@ -159,7 +159,6 @@ setup(
         "Natural Language :: English",
         "Operating System :: POSIX :: Linux",
         "Programming Language :: Python :: 2",
-        "License :: OSI Approved :: "
-        "GNU Affero General Public License v3",
+        "License :: OSI Approved :: GNU Affero General Public License v3",
     ]
 )
