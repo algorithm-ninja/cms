@@ -645,6 +645,11 @@ class YamlLoader(ContestLoader, TaskLoader, UserLoader, TeamLoader):
                     (compilation_param, infile_param, outfile_param,
                      evaluation_param)
 
+        # Override score_type if explicitly specified
+        if "score_type" in conf and "score_type_parameters" in conf:
+            load(conf, args, "score_type")
+            load(conf, args, "score_type_parameters")
+
         args["testcases"] = []
         for i in xrange(n_input):
             input_digest = self.file_cacher.put_file_from_path(
