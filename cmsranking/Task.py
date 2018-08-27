@@ -1,8 +1,9 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2011-2013 Luca Wehrstedt <luca.wehrstedt@gmail.com>
+# Copyright © 2018 Stefano Maggiolo <s.maggiolo@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -18,14 +19,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-
-import six
+from future.builtins.disabled import *  # noqa
+from future.builtins import *  # noqa
 
 from cmsranking.Entity import Entity, InvalidData
-from cmsranking.Store import Store
-from cmsranking.Submission import store as submission_store
 
 
 class Task(Entity):
@@ -55,7 +55,7 @@ class Task(Entity):
         self.max_score = None
         self.extra_headers = None
         self.order = None
-        self.score_mode = "max_tokened_last"
+        self.score_mode = None
 
     @staticmethod
     def validate(data):
@@ -67,26 +67,26 @@ class Task(Entity):
         try:
             assert isinstance(data, dict), \
                 "Not a dictionary"
-            assert isinstance(data['name'], six.text_type), \
+            assert isinstance(data['name'], str), \
                 "Field 'name' isn't a string"
-            assert isinstance(data['short_name'], six.text_type), \
+            assert isinstance(data['short_name'], str), \
                 "Field 'short_name' isn't a string"
-            assert isinstance(data['contest'], six.text_type), \
+            assert isinstance(data['contest'], str), \
                 "Field 'contest' isn't a string"
             assert isinstance(data['max_score'], float), \
                 "Field 'max_score' isn't a float"
-            assert isinstance(data['score_precision'], six.integer_types), \
+            assert isinstance(data['score_precision'], int), \
                 "Field 'score_precision' isn't an integer"
             assert data['score_precision'] >= 0, \
                 "Field 'score_precision' is negative"
             assert isinstance(data['extra_headers'], list), \
                 "Field 'extra_headers' isn't a list of strings"
-            assert isinstance(data['score_mode'], six.text_type), \
+            assert isinstance(data['score_mode'], str), \
                 "Field 'score_mode' isn't a string"
             for i in data['extra_headers']:
-                assert isinstance(i, six.text_type), \
+                assert isinstance(i, str), \
                     "Field 'extra_headers' isn't a list of strings"
-            assert isinstance(data['order'], six.integer_types), \
+            assert isinstance(data['order'], int), \
                 "Field 'order' isn't an integer"
         except KeyError as exc:
             raise InvalidData("Field %s is missing" % exc.message)
@@ -109,9 +109,5 @@ class Task(Entity):
         del result['key']
         return result
 
-    def consistent(self):
-        from cmsranking.Contest import store as contest_store
-        return self.contest in contest_store
-
-
-store = Store(Task, 'tasks', [submission_store])
+    def consistent(self, stores):
+        return "contest" not in stores or self.contest in stores["contest"]

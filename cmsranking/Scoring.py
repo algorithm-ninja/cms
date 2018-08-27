@@ -1,8 +1,9 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2011-2013 Luca Wehrstedt <luca.wehrstedt@gmail.com>
+# Copyright © 2018 Stefano Maggiolo <s.maggiolo@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -18,15 +19,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+from future.builtins.disabled import *  # noqa
+from future.builtins import *  # noqa
+from six import itervalues, iteritems
 
 import heapq
 import logging
 
-from cmsranking.Submission import store as submission_store
-from cmsranking.Subchange import store as subchange_store
-from cmsranking.Task import store as task_store
+from cmscommon.constants import SCORE_MODE_MAX, SCORE_MODE_MAX_TOKENED_LAST
 
 
 logger = logging.getLogger(__name__)
@@ -77,7 +80,7 @@ class Score(object):
     # but cms assures that the order in which the subchanges have to
     # be processed is the ascending order of their keys (actually,
     # this is enforced only for subchanges with the same time).
-    def __init__(self, score_mode="max_tokened_last"):
+    def __init__(self, score_mode):
         # The submissions in their current status.
         self._submissions = dict()
 
@@ -117,13 +120,15 @@ class Score(object):
                  self._submissions[s_id].time > self._last.time):
             self._last = self._submissions[s_id]
 
-        if self._score_mode == "max":
+        if self._score_mode == SCORE_MODE_MAX:
             score = max([0.0] +
                         [submission.score
-                         for submission in self._submissions.values()])
-        else:
+                         for submission in itervalues(self._submissions)])
+        elif self._score_mode == SCORE_MODE_MAX_TOKENED_LAST:
             score = max(self._released.query(),
                         self._last.score if self._last is not None else 0.0)
+        else:
+            raise ValueError("Unexpected score mode '%s'" % self._score_mode)
 
         if score != self.get_score():
             self._history.append((change.time, score))
@@ -138,7 +143,7 @@ class Score(object):
         del self._history[:]
 
         # Reset the submissions at their default value.
-        for sub in self._submissions.itervalues():
+        for sub in itervalues(self._submissions):
             sub.score = 0.0
             sub.token = False
             sub.extra = list()
@@ -236,13 +241,16 @@ class ScoringStore(object):
     # deleted. So we are sure that we can delete the Score after we
     # delete the last submission, but we cannot after we delete the
     # last subchange.
-    def __init__(self):
-        submission_store.add_create_callback(self.create_submission)
-        submission_store.add_update_callback(self.update_submission)
-        submission_store.add_delete_callback(self.delete_submission)
-        subchange_store.add_create_callback(self.create_subchange)
-        subchange_store.add_update_callback(self.update_subchange)
-        subchange_store.add_delete_callback(self.delete_subchange)
+    def __init__(self, stores):
+        self.task_store = stores["task"]
+        self.submission_store = stores["submission"]
+        self.subchange_store = stores["subchange"]
+        self.submission_store.add_create_callback(self.create_submission)
+        self.submission_store.add_update_callback(self.update_submission)
+        self.submission_store.add_delete_callback(self.delete_submission)
+        self.subchange_store.add_create_callback(self.create_subchange)
+        self.subchange_store.add_update_callback(self.update_subchange)
+        self.subchange_store.add_delete_callback(self.delete_subchange)
 
         self._scores = dict()
         self._callbacks = list()
@@ -254,9 +262,9 @@ class ScoringStore(object):
         finishes loading the data from disk.
 
         """
-        for key, value in submission_store._store.iteritems():
+        for key, value in iteritems(self.submission_store._store):
             self.create_submission(key, value)
-        for key, value in sorted(subchange_store._store.iteritems()):
+        for key, value in sorted(iteritems(self.subchange_store._store)):
             self.create_subchange(key, value)
 
     def add_score_callback(self, callback):
@@ -276,7 +284,7 @@ class ScoringStore(object):
         if submission.user not in self._scores:
             self._scores[submission.user] = dict()
         if submission.task not in self._scores[submission.user]:
-            task = task_store.retrieve(submission.task)
+            task = self.task_store.retrieve(submission.task)
             self._scores[submission.user][submission.task] = \
                 Score(score_mode=task["score_mode"])
 
@@ -296,7 +304,7 @@ class ScoringStore(object):
             self.create_submission(key, submission)
             return
 
-        task = task_store.retrieve(submission.task)
+        task = self.task_store.retrieve(submission.task)
 
         score_obj = self._scores[submission.user][submission.task]
         old_score = score_obj.get_score()
@@ -321,7 +329,7 @@ class ScoringStore(object):
             del self._scores[submission.user]
 
     def create_subchange(self, key, subchange):
-        submission = submission_store._store[subchange.submission]
+        submission = self.submission_store._store[subchange.submission]
         score_obj = self._scores[submission.user][submission.task]
         old_score = score_obj.get_score()
         score_obj.create_subchange(key, subchange)
@@ -335,7 +343,7 @@ class ScoringStore(object):
             self.create_subchange(key, subchange)
             return
 
-        submission = submission_store._store[subchange.submission]
+        submission = self.submission_store._store[subchange.submission]
         score_obj = self._scores[submission.user][submission.task]
         old_score = score_obj.get_score()
         score_obj.update_subchange(key, subchange)
@@ -344,12 +352,12 @@ class ScoringStore(object):
             self.notify_callbacks(submission.user, submission.task, new_score)
 
     def delete_subchange(self, key, subchange):
-        if subchange.submission not in submission_store:
+        if subchange.submission not in self.submission_store:
             # Submission has just been deleted. We cannot retrieve the
             # user and the task, so we cannot clean up the Score obj.
             # But the delete_submission callback will do it for us!
             return
-        submission = submission_store._store[subchange.submission]
+        submission = self.submission_store._store[subchange.submission]
         score_obj = self._scores[submission.user][submission.task]
         old_score = score_obj.get_score()
         score_obj.delete_subchange(key)
@@ -381,8 +389,8 @@ class ScoringStore(object):
         # Use a priority queue, containing only one entry
         # per-user/per-task.
         queue = list()
-        for user, dic in self._scores.iteritems():
-            for task, scoring in dic.iteritems():
+        for user, dic in iteritems(self._scores):
+            for task, scoring in iteritems(dic):
                 if scoring._history:
                     heapq.heappush(queue, (scoring._history[0],
                                            user, task, scoring, 0))
@@ -395,6 +403,3 @@ class ScoringStore(object):
             if len(scoring._history) > index + 1:
                 heapq.heappush(queue, (scoring._history[index + 1],
                                        user, task, scoring, index + 1))
-
-
-store = ScoringStore()
