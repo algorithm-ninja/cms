@@ -29,7 +29,8 @@ from six import itervalues, iteritems
 import heapq
 import logging
 
-from cmscommon.constants import SCORE_MODE_MAX, SCORE_MODE_MAX_TOKENED_LAST
+SCORE_MODE_MAX = "max"
+SCORE_MODE_MAX_TOKENED_LAST = "max_tokened_last"
 
 
 logger = logging.getLogger(__name__)
