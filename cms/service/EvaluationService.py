@@ -888,7 +888,7 @@ class EvaluationService(TriggeredService):
             contest_id = self.contest_id
 
         with SessionGen() as session:
-            if dataset_id is not None and task_id is None:
+            if dataset_id is not None and task_id is None and submission_id is None:
                 task_id = Dataset.get_from_id(dataset_id, session).task_id
             # First we load all involved submissions.
             submissions = get_submissions(
