@@ -257,6 +257,7 @@ def _authenticate_request_by_ip_address(sql_session, contest, ip_address):
     # We encode it as a network (i.e., we assign it a /32 or /128 mask)
     # since we're comparing it for equality with other networks.
     ip_network = ipaddress.ip_network((ip_address, ip_address.max_prefixlen))
+    logger.error("Network: %s %s", str(ip_network), type(ip_network))
 
     participations = sql_session.query(Participation) \
         .options(contains_eager(Participation.user)) \
@@ -269,6 +270,7 @@ def _authenticate_request_by_ip_address(sql_session, contest, ip_address):
             .filter(Participation.hidden.is_(False))
 
     participations = participations.all()
+    logger.error("participations: %s", str(participations))
 
     if len(participations) == 0:
         logger.info(
@@ -287,6 +289,9 @@ def _authenticate_request_by_ip_address(sql_session, contest, ip_address):
         raise AmbiguousIPAddress()
 
     participation = participations[0]
+    logger.error("participation ip: %s", str(participation.ip))
+    logger.error("participation id: %s", str(participation.id))
+    logger.error("participation user: %s %s", str(participation.user.username), str(participation.user.id))
     logger.info(
         "Successful IP authentication from IP address %s, as user %s, on "
         "contest %s", ip_address, participation.user.username, contest.name)

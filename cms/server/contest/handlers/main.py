@@ -98,10 +98,12 @@ class LoginHandler(ContestHandler):
             # In py2 Tornado gives us the IP address as a native binary
             # string, whereas ipaddress wants text (unicode) strings.
             ip_address = ipaddress.ip_address(str(self.request.remote_ip))
+            logger.error("Ip address %s, %s", str(self.request.remote_ip), str(ip_address))
         except ValueError:
             logger.warning("Invalid IP address provided by Tornado: %s",
                            self.request.remote_ip)
             return None
+        logger.error("username: %s password: %s", username, password)
 
         participation, cookie = validate_login(
             self.sql_session, self.contest, self.timestamp, username, password,

@@ -24,6 +24,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from future.builtins.disabled import *  # noqa
 from future.builtins import *  # noqa
+import ipaddress
 
 import json
 
@@ -178,7 +179,7 @@ class AWSAuthMiddleware(object):
             self.clear()
             return
 
-        if remote_addr != self._request.remote_addr:
+        if ipaddress.ip_address(remote_addr) != ipaddress.ip_address(self._request.remote_addr):
             self.clear()
             return
 
