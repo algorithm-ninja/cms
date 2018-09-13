@@ -122,7 +122,7 @@ class LoginHandler(ContestHandler):
                 self.sql_session.commit()
             else:
                 # TODO: notify the user that they're uninvited
-                self.redirect(fallback_page + "?login_error=true")
+                self.redirect(error_page)
                 return
 
         # If a contest-specific password is defined, use that. If it's
