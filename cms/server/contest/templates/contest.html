@@ -81,6 +81,7 @@ function redrawStats() {
         .attr("width", new_width)
         .selectAll('rect')
         .remove()
+        .select("#stats")
         .data(s)
         .enter()
         .append('rect')
@@ -91,13 +92,13 @@ function redrawStats() {
         .on("mouseover", function(d) {
             d3
                 .select("#stats-tooltip")
-                .html('<strong>' + d.name + '</strong>: ' + d.perc + '% of the points');
+                .html('<strong>' + d.name + '</strong>: ' + d.perc + '% dei punti');
         })
         .on("mouseout", function(d) {
             d3
                 .select("#stats-tooltip")
-                .html('Hover the graph for information');
-        })
+                .html('Avvicina il mouse per i dettagli');
+        });
 }
 
 function reloadStats(force) {
@@ -116,7 +117,7 @@ function reloadStats(force) {
         if (loading) {
             $("#stats-tooltip").html("Loading...");
         } else {
-            $("#stats-tooltip").html("Hover the graph for information");
+            $("#stats-tooltip").html("Avvicina il mouse per i dettagli");
         }
     }, function(data) {
         stats = data["tasks_by_score_rel"];
