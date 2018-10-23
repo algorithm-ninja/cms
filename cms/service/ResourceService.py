@@ -34,6 +34,7 @@ import bisect
 import logging
 import os
 import re
+import sys
 import time
 
 import psutil
@@ -155,7 +156,9 @@ class ProcessMatcher(object):
         if "python" not in cl_interpreter:
             return None
 
-        cl_service = re.search(r"\bcms([a-zA-Z]+)$", cmdline[start_index + 1])
+        cl_service = re.search(r"^%s([a-zA-Z]+)$" %
+                               re.escape(os.path.join(BIN_PATH, "cms")),
+                               cmdline[start_index + 1])
         if not cl_service:
             return None
         cl_service = cl_service.groups()[0]
@@ -261,7 +264,7 @@ class ResourceService(Service):
                 # it, since it causes no trouble.
                 logger.info("Restarting (%s, %s)...",
                             service.name, service.shard)
-                command = "cms%s" % service.name
+                command = os.path.join(BIN_PATH, "cms%s" % service.name)
                 if not config.installed:
                     command = os.path.join(
                         ".",
