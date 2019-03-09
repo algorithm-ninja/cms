@@ -773,6 +773,10 @@ class IsolateSandbox(SandboxBase):
                       + (IsolateSandbox.next_id % 10)) % 100
         else:
             box_id = IsolateSandbox.next_id % 10
+
+        # Attempt to fix problem with digit
+        box_id += 200
+
         IsolateSandbox.next_id += 1
 
         # We create a directory "tmp" inside the outer temporary directory,
