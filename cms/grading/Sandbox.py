@@ -836,7 +836,12 @@ class IsolateSandbox(SandboxBase):
         ret = subprocess.call(box_cmd)
         if ret != 0:
             # Clean sandbox
-            self.delete()
+            logger.debug("Error, attempt to recover by cleaning sandbox in %s.", self.path)
+
+            # Tell isolate to cleanup the sandbox.
+            box_cmd = [self.box_exec] + (["--cg"] if self.cgroup else []) \
+                + ["--box-id=%d" % self.box_id]
+            subprocess.call(box_cmd + ["--cleanup"])
 
             # Try again...
             box_cmd = [self.box_exec] + (["--cg"] if self.cgroup else []) \
