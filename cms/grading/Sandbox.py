@@ -839,6 +839,9 @@ class IsolateSandbox(SandboxBase):
                 "Failed to initialize sandbox with command: %s "
                 "(error %d)" % (pretty_print_cmdline(box_cmd), ret))
 
+            # Run cleanup
+            subprocess.call([self.box_exec] + ["--cg"] + ["--box-id=%d" % self.box_id] + ["--cleanup"])
+
     def add_mapped_directories(self, dirs):
         """Add dirs to the external dirs visible to the sandboxed command.
 
