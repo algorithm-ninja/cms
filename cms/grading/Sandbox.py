@@ -835,13 +835,18 @@ class IsolateSandbox(SandboxBase):
             + ["--box-id=%d" % self.box_id] + ["--init"]
         ret = subprocess.call(box_cmd)
         if ret != 0:
+            # Clean sandbox
+            self.delete()
 
-            # Run cleanup
-            subprocess.call([self.box_exec] + ["--cg"] + ["--box-id=%d" % self.box_id] + ["--cleanup"])
+            # Try again...
+            box_cmd = [self.box_exec] + (["--cg"] if self.cgroup else []) \
+                + ["--box-id=%d" % self.box_id] + ["--init"]
+            ret = subprocess.call(box_cmd)
 
-            raise SandboxInterfaceException(
-                "Failed to initialize sandbox with command: %s "
-                "(error %d)" % (pretty_print_cmdline(box_cmd), ret))
+            if ret != 0:
+                raise SandboxInterfaceException(
+                    "Failed to initialize sandbox with command: %s "
+                    "(error %d)" % (pretty_print_cmdline(box_cmd), ret))
 
     def add_mapped_directories(self, dirs):
         """Add dirs to the external dirs visible to the sandboxed command.
