@@ -79,7 +79,7 @@ class Contest(Base):
     languages = Column(
         ARRAY(String),
         nullable=False,
-        default=["C11 / gcc", "C++14 / g++", "Pascal / fpc"])
+        default=["C18 / gcc", "C++17 / g++", "Pascal / fpc"])
 
     # The list of names of statistics visible in the contest.
     visible_stats = Column(

@@ -21,19 +21,19 @@
 from cms.grading import CompiledLanguage
 
 
-__all__ = ["Cpp14Gpp"]
+__all__ = ["Cpp17Gpp"]
 
 
-class Cpp14Gpp(CompiledLanguage):
+class Cpp17Gpp(CompiledLanguage):
     """This defines the C++ programming language, compiled with g++ (the
-    version available on the system) using the C++14 standard.
+    version available on the system) using the C++17 standard.
 
     """
 
     @property
     def name(self):
         """See Language.name."""
-        return "C++14 / g++"
+        return "C++17 / g++"
 
     @property
     def source_extensions(self):
@@ -57,7 +57,7 @@ class Cpp14Gpp(CompiledLanguage):
         command = ["/usr/bin/g++"]
         if for_evaluation:
             command += ["-DEVAL"]
-        command += ["-std=c++14", "-O3", "-pipe", "-static",
+        command += ["-std=c++17", "-O3", "-pipe", "-static",
                     "-s", "-o", executable_filename]
         command += source_filenames
         return [command]

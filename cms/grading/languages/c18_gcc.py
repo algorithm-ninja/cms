@@ -21,19 +21,19 @@
 from cms.grading import CompiledLanguage
 
 
-__all__ = ["C11Gcc"]
+__all__ = ["C18Gcc"]
 
 
-class C11Gcc(CompiledLanguage):
+class C18Gcc(CompiledLanguage):
     """This defines the C programming language, compiled with gcc (the
-    version available on the system) using the C11 standard.
+    version available on the system) using the C18 standard.
 
     """
 
     @property
     def name(self):
         """See Language.name."""
-        return "C11 / gcc"
+        return "C18 / gcc"
 
     @property
     def source_extensions(self):
@@ -57,7 +57,7 @@ class C11Gcc(CompiledLanguage):
         command = ["/usr/bin/gcc"]
         if for_evaluation:
             command += ["-DEVAL"]
-        command += ["-std=c11", "-O3", "-pipe", "-static",
+        command += ["-std=c18", "-O3", "-pipe", "-static",
                     "-s", "-o", executable_filename]
         command += source_filenames
         command += ["-lm"]
