@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2013 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
@@ -21,23 +20,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from future.builtins.disabled import *  # noqa
-from future.builtins import *  # noqa
-
 import argparse
-import chardet
-import errno
+import grp
 import itertools
 import logging
 import netifaces
 import os
 import sys
-import grp
 
+import chardet
 import gevent
 import gevent.socket
 
@@ -56,17 +47,20 @@ def mkdir(path):
     """
     try:
         os.mkdir(path)
+    except FileExistsError:
+        return True
+    except OSError:
+        return False
+    else:
         try:
             os.chmod(path, 0o770)
             cmsuser_gid = grp.getgrnam(config.cmsuser).gr_gid
             os.chown(path, -1, cmsuser_gid)
-        except OSError as error:
+        except OSError:
             os.rmdir(path)
             return False
-    except OSError as error:
-        if error.errno != errno.EEXIST:
-            return False
-    return True
+        else:
+            return True
 
 
 # This function is vulnerable to a symlink attack, see:
@@ -323,7 +317,7 @@ def _get_shard_from_addresses(service, addrs):
                                       host, port,
                                       gevent.socket.AF_INET,
                                       gevent.socket.SOCK_STREAM)])
-        except (gevent.socket.gaierror, gevent.socket.error):
+        except OSError:
             pass
         else:
             if not ipv4_addrs.isdisjoint(res_ipv4_addrs):
@@ -335,7 +329,7 @@ def _get_shard_from_addresses(service, addrs):
                                       host, port,
                                       gevent.socket.AF_INET6,
                                       gevent.socket.SOCK_STREAM)])
-        except (gevent.socket.gaierror, gevent.socket.error):
+        except OSError:
             pass
         else:
             if not ipv6_addrs.isdisjoint(res_ipv6_addrs):

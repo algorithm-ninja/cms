@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2010-2013 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
@@ -29,17 +28,8 @@
 
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-# setuptools doesn't seem to like this:
-# from __future__ import unicode_literals
-from future.builtins.disabled import *  # noqa
-from future.builtins import *  # noqa
-
-import io
-import re
 import os
+import re
 
 from setuptools import setup, find_packages
 from setuptools.command.build_py import build_py
@@ -54,13 +44,14 @@ PACKAGE_DATA = {
         "admin/static/sh/*.*",
         "admin/templates/*.*",
         "admin/templates/fragments/*.*",
-        "admin/templates/views/*.*",
+        "admin/templates/macro/*.*",
         "contest/static/*.*",
         "contest/static/css/*.*",
         "contest/static/img/*.*",
         "contest/static/img/mimetypes/*.*",
         "contest/static/js/*.*",
         "contest/templates/*.*",
+        "contest/templates/macro/*.*",
     ],
     "cms.service": [
         "templates/printing/*.*",
@@ -103,9 +94,9 @@ PACKAGE_DATA = {
 def find_version():
     """Return the version string obtained from cms/__init__.py"""
     path = os.path.join("cms", "__init__.py")
-    version_file = io.open(path, "rt", encoding="utf-8").read()
-    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
-                              version_file, re.M)
+    with open(path, "rt", encoding="utf-8") as f:
+        version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
+                                  f.read(), re.M)
     if version_match is not None:
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
@@ -117,8 +108,11 @@ def find_version():
 class build_py_and_l10n(build_py):
     def run(self):
         self.run_command("compile_catalog")
-        # Can't use super here as in Py2 it isn't a new-style class.
-        build_py.run(self)
+        # The build command of distutils/setuptools searches the tree
+        # and compiles a list of data files before run() is called and
+        # then stores that value. Hence we need to refresh it.
+        self.data_files = self._get_data_files()
+        super().run()
 
 
 setup(
@@ -157,7 +151,6 @@ setup(
             "cmsAddTestcases=cmscontrib.AddTestcases:main",
             "cmsAddUser=cmscontrib.AddUser:main",
             "cmsCleanFiles=cmscontrib.CleanFiles:main",
-            "cmsComputeComplexity=cmscontrib.ComputeComplexity:main",
             "cmsDumpExporter=cmscontrib.DumpExporter:main",
             "cmsDumpImporter=cmscontrib.DumpImporter:main",
             "cmsDumpUpdater=cmscontrib.DumpUpdater:main",
@@ -208,7 +201,6 @@ setup(
         "Development Status :: 5 - Production/Stable",
         "Natural Language :: English",
         "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3.6",
         "License :: OSI Approved :: "
         "GNU Affero General Public License v3",

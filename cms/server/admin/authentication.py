@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2015 Stefano Maggiolo <s.maggiolo@gmail.com>
@@ -25,12 +24,11 @@ from __future__ import unicode_literals
 from future.builtins.disabled import *  # noqa
 from future.builtins import *  # noqa
 import ipaddress
-
 import json
 
-from werkzeug.wrappers import Request, Response
-from werkzeug.local import Local, LocalManager
 from werkzeug.contrib.securecookie import SecureCookie
+from werkzeug.local import Local, LocalManager
+from werkzeug.wrappers import Request, Response
 
 from cms import config
 from cmscommon.binary import hex_to_bin
@@ -51,7 +49,7 @@ class JSONSecureCookie(SecureCookie):
     serialization_method = UTF8JSON
 
 
-class AWSAuthMiddleware(object):
+class AWSAuthMiddleware:
     """Handler for the low-level tasks of admin authentication.
 
     Intercepts all requests and responses to AWS, parses the auth

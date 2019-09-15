@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
 # Contest Management System - http://cms-dev.github.io/
 # Copyright © 2012 Giovanni Mascellani <mascellani@poisson.phc.unipi.it>
@@ -34,14 +33,6 @@ testcase".
 
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from future.builtins.disabled import *  # noqa
-from future.builtins import *  # noqa
-from six import itervalues, iteritems
-
 import logging
 
 from cms.db import Dataset, Evaluation, Executable, File, Manager, Submission, \
@@ -67,7 +58,7 @@ def _is_contest_multithreaded(contest):
                for l in contest.languages)
 
 
-class Job(object):
+class Job:
     """Base class for all jobs.
 
     Input data (usually filled by ES): task_type,
@@ -78,7 +69,7 @@ class Job(object):
     def __init__(self, operation=None,
                  task_type=None, task_type_parameters=None,
                  language=None, multithreaded_sandbox=False,
-                 shard=None, sandboxes=None, info=None,
+                 shard=None, keep_sandbox=False, sandboxes=None, info=None,
                  success=None, text=None,
                  files=None, managers=None, executables=None):
         """Initialization.
@@ -92,6 +83,9 @@ class Job(object):
         multithreaded_sandbox (boolean): whether the sandbox should
             allow multithreading.
         shard (int|None): the shard of the Worker completing this job.
+        keep_sandbox (bool): whether to forcefully keep the sandbox,
+            even if other conditions (the config, the sandbox status)
+            don't warrant it.
         sandboxes ([string]|None): the paths of the sandboxes used in
             the Worker during the execution of the job.
         info (string|None): a human readable description of the job.
@@ -126,6 +120,7 @@ class Job(object):
         self.language = language
         self.multithreaded_sandbox = multithreaded_sandbox
         self.shard = shard
+        self.keep_sandbox = keep_sandbox
         self.sandboxes = sandboxes
         self.info = info
 
@@ -147,16 +142,17 @@ class Job(object):
             'language': self.language,
             'multithreaded_sandbox': self.multithreaded_sandbox,
             'shard': self.shard,
+            'keep_sandbox': self.keep_sandbox,
             'sandboxes': self.sandboxes,
             'info': self.info,
             'success': self.success,
             'text': self.text,
             'files': dict((k, v.digest)
-                          for k, v in iteritems(self.files)),
+                          for k, v in self.files.items()),
             'managers': dict((k, v.digest)
-                             for k, v in iteritems(self.managers)),
+                             for k, v in self.managers.items()),
             'executables': dict((k, v.digest)
-                                for k, v in iteritems(self.executables)),
+                                for k, v in self.executables.items()),
             }
         return res
 
@@ -187,11 +183,11 @@ class Job(object):
         if data['operation'] is not None:
             data['operation'] = ESOperation.from_dict(data['operation'])
         data['files'] = dict(
-            (k, File(k, v)) for k, v in iteritems(data['files']))
+            (k, File(k, v)) for k, v in data['files'].items())
         data['managers'] = dict(
-            (k, Manager(k, v)) for k, v in iteritems(data['managers']))
+            (k, Manager(k, v)) for k, v in data['managers'].items())
         data['executables'] = dict(
-            (k, Executable(k, v)) for k, v in iteritems(data['executables']))
+            (k, Executable(k, v)) for k, v in data['executables'].items())
         return cls(**data)
 
     @staticmethod
@@ -250,7 +246,7 @@ class CompilationJob(Job):
 
     def __init__(self, operation=None, task_type=None,
                  task_type_parameters=None,
-                 shard=None, sandboxes=None, info=None,
+                 shard=None, keep_sandbox=False, sandboxes=None, info=None,
                  language=None, multithreaded_sandbox=False,
                  files=None, managers=None,
                  success=None, compilation_success=None,
@@ -267,7 +263,7 @@ class CompilationJob(Job):
 
         Job.__init__(self, operation, task_type, task_type_parameters,
                      language, multithreaded_sandbox,
-                     shard, sandboxes, info, success, text,
+                     shard, keep_sandbox, sandboxes, info, success, text,
                      files, managers, executables)
         self.compilation_success = compilation_success
         self.plus = plus
@@ -336,7 +332,7 @@ class CompilationJob(Job):
         sr.compilation_memory = self.plus.get('execution_memory')
         sr.compilation_shard = self.shard
         sr.compilation_sandbox = ":".join(self.sandboxes)
-        for executable in itervalues(self.executables):
+        for executable in self.executables.values():
             sr.executables.set(executable)
 
     @staticmethod
@@ -415,7 +411,7 @@ class CompilationJob(Job):
         ur.compilation_memory = self.plus.get('execution_memory')
         ur.compilation_shard = self.shard
         ur.compilation_sandbox = ":".join(self.sandboxes)
-        for executable in itervalues(self.executables):
+        for executable in self.executables.values():
             u_executable = UserTestExecutable(
                 executable.filename, executable.digest)
             ur.executables.set(u_executable)
@@ -436,7 +432,7 @@ class EvaluationJob(Job):
     """
     def __init__(self, operation=None, task_type=None,
                  task_type_parameters=None, shard=None,
-                 sandboxes=None, info=None,
+                 keep_sandbox=False, sandboxes=None, info=None,
                  language=None, multithreaded_sandbox=False,
                  files=None, managers=None, executables=None,
                  input=None, output=None,
@@ -468,7 +464,7 @@ class EvaluationJob(Job):
         """
         Job.__init__(self, operation, task_type, task_type_parameters,
                      language, multithreaded_sandbox,
-                     shard, sandboxes, info, success, text,
+                     shard, keep_sandbox, sandboxes, info, success, text,
                      files, managers, executables)
         self.input = input
         self.output = output
@@ -647,7 +643,7 @@ class EvaluationJob(Job):
         ur.output = self.user_output
 
 
-class JobGroup(object):
+class JobGroup:
     """A simple collection of jobs."""
 
     def __init__(self, jobs=None):
