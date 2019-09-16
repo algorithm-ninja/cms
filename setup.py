@@ -182,8 +182,8 @@ setup(
             "GroupThreshold=cms.grading.scoretypes.GroupThreshold:GroupThreshold",
         ],
         "cms.grading.languages": [
-            "C++14 / g++=cms.grading.languages.cpp14_gpp:Cpp14Gpp",
-            "C11 / gcc=cms.grading.languages.c11_gcc:C11Gcc",
+            "C++17 / g++=cms.grading.languages.cpp17_gpp:Cpp17Gpp",
+            "C18 / gcc=cms.grading.languages.c18_gcc:C18Gcc",
             "C# / Mono=cms.grading.languages.csharp_mono:CSharpMono",
             "Haskell / ghc=cms.grading.languages.haskell_ghc:HaskellGhc",
             "Java 1.4 / gcj=cms.grading.languages.java14_gcj:Java14Gcj",
