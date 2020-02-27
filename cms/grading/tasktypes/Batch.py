@@ -170,8 +170,9 @@ class Batch(TaskType):
         # be the first file in source_filenames.
         if self._uses_grader():
             source_filenames.insert(0, "grader%s" % source_ext)
-            files_to_get["grader%s" % source_ext] = \
-                job.managers["grader%s" % source_ext].digest
+            if "grader%s" % source_ext in job.managers:
+                files_to_get["grader%s" % source_ext] = \
+                    job.managers["grader%s" % source_ext].digest
 
         # Also copy all managers that might be useful during compilation.
         for filename in job.managers.iterkeys():
