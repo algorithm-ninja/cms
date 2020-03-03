@@ -36,7 +36,7 @@ import tornado.web
 from sqlalchemy.orm.exc import NoResultFound
 
 from cms import config
-from cms.db import PrintJob, User, Participation, Team
+from cms.db import PrintJob, User, Participation, Team, Contest
 from cms.grading.steps import COMPILATION_MESSAGES, EVALUATION_MESSAGES
 from cms.server import multi_contest
 from cms.server.contest.authentication import validate_login
@@ -133,6 +133,18 @@ class RegistrationHandler(ContestHandler):
         participation = Participation(user=user, contest=self.contest,
                                       team=team)
         self.sql_session.add(participation)
+
+        # If on contest 'algo-simula-prove' then add to 'ALGO2020'
+        if self.contest.name == 'algo-simula-prove':
+            other_contest = self.sql_session.query(Contest).filter(Contest.name == 'ALGO2020').one()
+            participation = Participation(user=user, contest=other_contest, team=team)
+            self.sql_session.add(participation)
+
+        # If on contest 'ALGO2020' then add to 'algo-simula-prove'
+        if self.contest.name == 'ALGO2020':
+            other_contest = self.sql_session.query(Contest).filter(Contest.name == 'algo-simula-prove').one()
+            participation = Participation(user=user, contest=other_contest, team=team)
+            self.sql_session.add(participation)
 
         self.sql_session.commit()
 
