@@ -32,6 +32,7 @@ from .main import \
     RegistrationHandler, \
     StartHandler, \
     NotificationsHandler, \
+    StatsHandler, \
     PrintingHandler, \
     DocumentationHandler
 from .task import \
@@ -63,6 +64,7 @@ HANDLERS = [
     (r"/register", RegistrationHandler),
     (r"/start", StartHandler),
     (r"/notifications", NotificationsHandler),
+    (r"/stats", StatsHandler),
     (r"/printing", PrintingHandler),
     (r"/documentation", DocumentationHandler),
 

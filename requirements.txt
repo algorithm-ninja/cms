@@ -22,7 +22,7 @@ pyxdg>=0.25,<0.26  # https://freedesktop.org/wiki/Software/pyxdg/
 Jinja2>=2.10,<2.11  # http://jinja.pocoo.org/docs/latest/changelog/
 
 # Only for some importers:
-pyyaml>=3.12,<3.13  # http://pyyaml.org/wiki/PyYAML
+pyyaml>=3.12
 
 # Only for printing:
 pycups>=1.9,<1.10  # https://pypi.python.org/pypi/pycups

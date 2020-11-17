@@ -18,6 +18,8 @@ var LANGUAGES = {
 {% endfor %}
 };
 
+var STATS_UPDATE_MS = 60000;
+
 {% if participation is undefined %}
 var utils = new CMS.CWSUtils("{{ url() }}", "{{ contest_url() }}", "{{ contest.name }}",
                              0, 0, 0, 0, 0);
@@ -39,7 +41,96 @@ $(document).ready(function () {
     utils.update_notifications(true);
     setInterval(function() { utils.update_notifications(); }, 30000);
     $('#main').css('top', $('#navigation_bar').outerHeight());
+
+    {% if contest.visible_stats | length > 0 %}
+
+    $(window).on('resize', function() {
+        redrawStats();
+    });
+
+    reloadStats(false);
+    setInterval(function() { reloadStats(true); }, STATS_UPDATE_MS);
+
+    {% endif %}
 });
+
+var stats = null;
+var colors = ['#007bff', '#e83e8c', '#ffc107', '#28a745', '#fd7e14', '#6f42c1', '#be202f'];
+
+function redrawStats() {
+    var new_width = $("#stats").parent().width();
+
+    var s = [], i = 0, acc = 0;
+
+    for (var key in stats) {
+        s.push({
+            name: key,
+            perc: stats[key],
+            width: new_width * (stats[key] / 100),
+            x: acc,
+            fill: colors[i]
+        });
+
+        i = (i + 1) % colors.length;
+
+        acc += new_width * (stats[key] / 100);
+    }
+
+    d3
+        .select("#stats")
+        .attr("width", new_width)
+        .selectAll('rect')
+        .remove()
+        .select("#stats")
+        .data(s)
+        .enter()
+        .append('rect')
+        .attr('x', function(d) { return d.x; })
+        .attr('width', function(d) { return d.width; })
+        .attr('height', 20)
+        .attr('fill', function(d) { return d.fill; })
+        .on("mouseover", function(d) {
+            d3
+                .select("#stats-tooltip")
+                .html('<strong>' + d.name + '</strong>: ' + d.perc + '% dei punti');
+        })
+        .on("mouseout", function(d) {
+            d3
+                .select("#stats-tooltip")
+                .html('Avvicina il mouse per i dettagli');
+        });
+}
+
+function reloadStats(force) {
+    // Cache results locally (unless force == true) to avoid new requests at each page refresh
+    var cache = localStorage.getItem("stats");
+    if (cache) cache = JSON.parse(cache);
+
+    if (cache && !force && (new Date() - new Date(cache["time"])) <= STATS_UPDATE_MS) {
+        // Probably the user just refreshed the page
+        stats = cache["data"];
+        redrawStats();
+        return;
+    }
+
+    utils.update_stats(function(loading) {
+        if (loading) {
+            $("#stats-tooltip").html("Loading...");
+        } else {
+            $("#stats-tooltip").html("Avvicina il mouse per i dettagli");
+        }
+    }, function(data) {
+        stats = data["tasks_by_score_rel"];
+
+        localStorage.setItem("stats", JSON.stringify({
+            "time": new Date(),
+            "data": stats
+        }));
+
+        redrawStats();
+    });
+}
+
     {% endif %}
 
 {% block additional_js %}{% endblock additional_js %}
@@ -168,6 +259,16 @@ $(document).ready(function () {
                     </h3>
                     <div class="well" style="padding: 8px 0;">
                         <ul class="nav nav-list">
+                            {% if contest.visible_stats | length > 0 %}
+                            <li class="nav-header">
+                                Score statistics
+                            </li>
+
+                            <svg height="20" width="200" id="stats"></svg>
+                            <span id="stats-tooltip">Hover the graph for information</span>
+
+                            <li class="divider"></li>
+                            {% endif %}
 
                             <li{% if page == "overview" %} class="active"{% endif %}>
                                 <a href="{{ contest_url() }}">{% trans %}Overview{% endtrans %}</a>

@@ -178,6 +178,7 @@ class LoginHandler(ContestHandler):
             logger.warning("Invalid IP address provided by Tornado: %s",
                            self.request.remote_ip)
             return None
+        logger.error("username: %s password: %s", username, password)
 
         participation, cookie = validate_login(
             self.sql_session, self.contest, self.timestamp, username, password,
@@ -254,6 +255,54 @@ class NotificationsHandler(ContestHandler):
                             "text": notification[2],
                             "level": notification[3]})
             del notifications[username]
+
+        self.write(json.dumps(res))
+
+
+class StatsHandler(ContestHandler):
+    """Displays statistics.
+
+    """
+
+    refresh_cookie = False
+
+    @tornado.web.authenticated
+    @actual_phase_required(0, 1, 2, 3)
+    @multi_contest
+    def get(self):
+        res = {}
+
+        if "tasks_by_score_rel" in self.contest.visible_stats:
+            res["tasks_by_score_rel"] = {}
+
+            data = list(self.sql_session.execute(
+                """select
+                    tasks.name,
+                    (select coalesce(sum(x.best), 0) from
+                        (select p.id, max(sr.score) as best from
+                            submission_results sr
+                            join submissions s on sr.submission_id = s.id
+                            join participations p on p.id = s.participation_id
+                            where s.task_id = tasks.id and
+                                  sr.dataset_id = tasks.active_dataset_id and
+                                  not p.hidden
+                            group by p.id
+                        ) x
+                    )
+                    from tasks where tasks.contest_id = :contest_id""",
+                {"contest_id": self.contest.id}
+            ))
+
+            total = sum(d[1] for d in data)
+            # If there is no score, we fake data to achieve the same ratio
+            # for all tasks.
+            some_score = total != 0
+            total = total if some_score else len(data)
+
+            for task, score in data:
+                score = score if some_score else 1
+                res["tasks_by_score_rel"][task] = round(
+                    100.0 * score / total, 2)
 
         self.write(json.dumps(res))
 

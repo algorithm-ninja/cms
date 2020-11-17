@@ -17,6 +17,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+import ipaddress
 import json
 
 from werkzeug.contrib.securecookie import SecureCookie
@@ -170,7 +175,7 @@ class AWSAuthMiddleware:
             self.clear()
             return
 
-        if remote_addr != self._request.remote_addr:
+        if ipaddress.ip_address(remote_addr) != ipaddress.ip_address(self._request.remote_addr):
             self.clear()
             return
 
