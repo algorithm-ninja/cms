@@ -57,7 +57,7 @@ class C18Gcc(CompiledLanguage):
         command = ["/usr/bin/gcc"]
         if for_evaluation:
             command += ["-DEVAL"]
-        command += ["-std=c18", "-O3", "-pipe", "-static",
+        command += ["-std=c18", "-O3", "-march=native", "-pipe", "-static",
                     "-s", "-o", executable_filename]
         command += source_filenames
         command += ["-lm"]

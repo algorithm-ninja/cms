@@ -58,7 +58,7 @@ class Cpp17Gpp(CompiledLanguage):
         command = ["/usr/bin/g++"]
         if for_evaluation:
             command += ["-DEVAL"]
-        command += ["-std=gnu++17", "-O2", "-pipe", "-static",
+        command += ["-std=gnu++17", "-O3", "-march=native", "-pipe", "-static",
                     "-s", "-o", executable_filename]
         command += source_filenames
         return [command]
